@@ -1,0 +1,368 @@
+.bound_times <- function(paths, vertices) {
+  result <- as.data.frame(paths)
+  result$arrival_time[match(vertices, result$node)]
+}
+
+test_that("path windows resolve canonical bounds and compatibility aliases", {
+  dn <- quiet_dynet(data.frame(
+    from = "A", to = "B", start = 2, end = 8
+  ))
+
+  expect_identical(.path_window(dn, "forward", at = 3),
+                   list(start = 3, end = Inf))
+  expect_identical(.path_window(dn, "backward", at = 7),
+                   list(start = -Inf, end = 7))
+  expect_identical(.path_window(dn, "forward", start = 3, end = 7),
+                   list(start = 3, end = 7))
+  expect_error(.path_window(dn, "forward", at = 3, end = 7),
+               class = "dynet_bad_input")
+  expect_error(.path_window(dn, "backward", start = 8, end = 7),
+               class = "dynet_bad_input")
+  expect_error(.path_window(dn, "forward", end = 1),
+               class = "dynet_bad_input")
+  expect_identical(.path_window(
+    dn, "forward", end = 1, clamp_missing = TRUE
+  ), list(start = 1, end = 1))
+  expect_error(.path_window(dn, "backward", start = 9),
+               class = "dynet_bad_input")
+  expect_identical(.path_window(
+    dn, "backward", start = 9, clamp_missing = TRUE
+  ), list(start = 9, end = 9))
+  expect_error(.path_window(dn, "sideways"), class = "simpleError")
+})
+
+test_that("canonical anchors preserve at and both-direction behavior", {
+  spells <- data.frame(
+    from = c("A", "B"), to = c("B", "C"),
+    start = c(1, 3), end = c(4, 6)
+  )
+  dn <- quiet_dynet(spells)
+  expect_equal(
+    as.data.frame(paths(dn, "A", at = 1)),
+    as.data.frame(paths(dn, "A", start = 1))
+  )
+  expect_equal(
+    as.data.frame(paths(dn, "C", at = 5, direction = "backward")),
+    as.data.frame(paths(dn, "C", end = 5, direction = "backward"))
+  )
+
+  both <- as.data.frame(reachability(
+    dn, direction = "both", start = 1, end = 5, sessions = "collapse"
+  ))
+  forward <- as.data.frame(reachability(
+    dn, direction = "forward", start = 1, end = 5, sessions = "collapse"
+  ))
+  backward <- as.data.frame(reachability(
+    dn, direction = "backward", start = 1, end = 5,
+    sessions = "collapse"
+  ))
+  expect_equal(subset(both, measure == "forward_reach")$value,
+               forward$value)
+  expect_equal(subset(both, measure == "backward_reach")$value,
+               backward$value)
+})
+
+test_that("the closed upper horizon preserves spell boundary semantics", {
+  spells <- data.frame(
+    from = c("Z", "A", "A", "A", "A", "A"),
+    to = c("A", "B", "C", "D", "E", "F"),
+    start = c(5, 5, 5, 0, 0, 6), end = c(5, 5, 7, 7, 5, 6)
+  )
+  dn <- quiet_dynet(spells)
+  paths <- paths(dn, from = "Z", start = 0, end = 5,
+                     sessions = "collapse")
+
+  expect_equal(.bound_times(paths, c("Z", "A", "B", "C", "D", "E", "F")),
+               c(0, 5, 5, 5, 5, NA, NA))
+  enc <- .encode(dn)
+  direct <- .temporal_bfs(enc, match("Z", enc$names), 0, upper = 5)
+  expect_equal(direct$arrival[match(c("Z", "A", "B", "C", "D", "E", "F"),
+                                    enc$names)],
+               c(0, 5, 5, 5, 5, Inf, Inf))
+  bounded <- .bfs_bounded(dn, enc, match("Z", enc$names), 0,
+                          bounded = FALSE, upper = 5)
+  expect_equal(bounded$arrival, direct$arrival)
+})
+
+test_that("a degenerate path window computes equal-time closure", {
+  chain <- data.frame(
+    from = c("A", "B"), to = c("B", "C"), start = 1, end = 1
+  )
+  results <- lapply(list(chain, chain[2:1, , drop = FALSE]), function(spells) {
+    paths(quiet_dynet(spells), from = "A", start = 1, end = 1)
+  })
+
+  invisible(lapply(results, function(paths) {
+    expect_equal(.bound_times(paths, c("A", "B", "C")), c(1, 1, 1))
+  }))
+})
+
+test_that("the backward lower bound uses attainment, not only its number", {
+  spells <- data.frame(
+    from = c("A", "B", "C", "D", "E", "F"), to = "T",
+    start = c(1, 2, 3, 0, 2, 0), end = c(1, 2, 3, 2, 4, 4)
+  )
+  dn <- quiet_dynet(spells)
+  paths <- as.data.frame(paths(
+    dn, from = "T", direction = "backward", start = 2, end = 5
+  ))
+  vertices <- c("T", "A", "B", "C", "D", "E", "F")
+  rows <- match(vertices, paths$node)
+
+  expect_equal(paths$arrival_time[rows], c(5, NA, 2, 3, NA, 4, 4))
+  expect_identical(paths$attained[rows],
+                   c(TRUE, FALSE, TRUE, TRUE, FALSE, FALSE, FALSE))
+  expect_equal(paths$latency[rows], c(0, NA, 3, 2, NA, 1, 1))
+  enc <- .encode(dn)
+  target <- match("T", enc$names)
+  direct <- .temporal_bfs_backward(enc, target, 5, lower = 2)
+  bounded <- .bfs_backward_bounded(
+    dn, enc, target, 5, bounded = FALSE, lower = 2
+  )
+  expect_equal(bounded$arrival, direct$arrival)
+  expect_identical(bounded$attained, direct$attained)
+})
+
+test_that("an unattained lower-bound chain is excluded at every hop", {
+  interval_chain <- data.frame(
+    from = c("A", "B"), to = c("B", "C"),
+    start = c(0, 2), end = c(2, 4)
+  )
+  event_chain <- transform(interval_chain, start = c(2, 2), end = c(2, 4))
+  interval <- as.data.frame(paths(
+    quiet_dynet(interval_chain), from = "C", direction = "backward",
+    start = 2, end = 5
+  ))
+  event <- as.data.frame(paths(
+    quiet_dynet(event_chain), from = "C", direction = "backward",
+    start = 2, end = 5
+  ))
+
+  expect_equal(interval$arrival_time[match(c("A", "B", "C"), interval$node)],
+               c(NA, 4, 5))
+  expect_equal(event$arrival_time[match(c("A", "B", "C"), event$node)],
+               c(2, 4, 5))
+  expect_true(event$attained[event$node == "A"])
+})
+
+test_that("path bounds are applied inside bounded session searches", {
+  spells <- data.frame(
+    from = c("A", "B", "A"), to = c("B", "C", "D"),
+    start = c(2, 4, 6), end = c(2, 4, 6),
+    session = c("s1", "s2", "s1")
+  )
+  dn <- quiet_dynet(spells, session = "session")
+  bounded <- paths(dn, from = "A", start = 2, end = 5,
+                       sessions = "bounded")
+  collapsed <- paths(dn, from = "A", start = 2, end = 5,
+                         sessions = "collapse")
+
+  expect_equal(.bound_times(bounded, c("A", "B", "C", "D")),
+               c(2, 2, NA, NA))
+  expect_equal(.bound_times(collapsed, c("A", "B", "C", "D")),
+               c(2, 2, 4, NA))
+})
+
+test_that("backward lower bounds apply inside each bounded session", {
+  spells <- data.frame(
+    from = c("A", "D"), to = c("B", "B"),
+    start = c(0, 2), end = c(2, 2), session = c("s1", "s2")
+  )
+  dn <- quiet_dynet(spells, session = "session")
+  paths <- as.data.frame(paths(
+    dn, from = "B", direction = "backward", start = 2, end = 5,
+    sessions = "bounded"
+  ))
+
+  expect_equal(paths$arrival_time[match(c("A", "B", "D"), paths$node)],
+               c(NA, 5, 2))
+  enc <- .encode(dn)
+  result <- .bfs_backward_bounded(
+    dn, enc, match("B", enc$names), 5, bounded = TRUE, lower = 2
+  )
+  expect_equal(result$arrival[match(c("A", "B", "D"), enc$names)],
+               c(-Inf, 5, 2))
+})
+
+test_that("bounded paths, reachability, and temporal reach agree", {
+  spells <- data.frame(
+    from = c("A", "B", "C"), to = c("B", "C", "D"),
+    start = c(2, 5, 6), end = c(2, 5, 6)
+  )
+  dn <- quiet_dynet(spells)
+  reach <- as.data.frame(reachability(
+    dn, direction = "forward", start = 0, end = 5,
+    sessions = "collapse"
+  ))
+  centrality <- as.data.frame(legacy_centrality(
+    dn, measure = "reach", scope = "temporal",
+    start = 0, end = 5, sessions = "collapse"
+  ))
+  path_share <- vapply(c("A", "B", "C", "D"), function(source) {
+    paths <- as.data.frame(paths(
+      dn, from = source, start = 0, end = 5, sessions = "collapse"
+    ))
+    (sum(paths$reachable) - 1) / 3
+  }, numeric(1L))
+
+  expected <- c(A = 2 / 3, B = 1 / 3, C = 0, D = 0)
+  expect_equal(stats::setNames(reach$value, reach$node), expected)
+  expect_equal(stats::setNames(centrality$value, centrality$node), expected)
+  expect_equal(stats::setNames(path_share, c("A", "B", "C", "D")),
+               expected)
+  expect_no_error(path_centrality(
+    dn, measure = "closeness", start = 0, end = 5
+  ))
+  bounded_centrality <- as.data.frame(legacy_centrality(
+    dn, measure = c("reach", "betweenness"), scope = "temporal",
+    start = 0, end = 5
+  ))
+  between <- bounded_centrality[
+    bounded_centrality$measure == "betweenness", , drop = FALSE
+  ]
+  expect_identical(stats::setNames(between$value, between$node),
+                   c(A = 0, B = 1, C = 0, D = 0))
+})
+
+test_that("backward reachability respects the common lower horizon", {
+  spells <- data.frame(
+    from = c("A", "B"), to = c("B", "C"),
+    start = c(0, 2), end = c(2, 4)
+  )
+  result <- as.data.frame(reachability(
+    quiet_dynet(spells), direction = "backward", start = 2, end = 5,
+    sessions = "collapse"
+  ))
+
+  expect_equal(stats::setNames(result$value, result$node),
+               c(A = 0, B = 0, C = 0.5))
+})
+
+test_that("date path bounds equal their internal numeric offsets", {
+  spells <- data.frame(
+    from = c("A", "B"), to = c("B", "C"),
+    start = as.Date(c("2024-01-02", "2024-01-04")),
+    end = as.Date(c("2024-01-02", "2024-01-04"))
+  )
+  dn <- quiet_dynet(spells, time_unit = "days")
+  dated <- paths(
+    dn, from = "A", start = as.Date("2024-01-01"),
+    end = as.Date("2024-01-02")
+  )
+  numeric <- paths(dn, from = "A", start = -1, end = 0)
+
+  expect_equal(as.data.frame(dated), as.data.frame(numeric))
+  expect_equal(.bound_times(dated, c("A", "B", "C")), c(-1, 0, NA))
+
+  backward_dated <- paths(
+    dn, from = "B", direction = "backward",
+    start = as.Date("2024-01-01"), end = as.Date("2024-01-02")
+  )
+  backward_numeric <- paths(
+    dn, from = "B", direction = "backward", start = -1, end = 0
+  )
+  expect_equal(as.data.frame(backward_dated),
+               as.data.frame(backward_numeric))
+
+  reach_dated <- reachability(
+    dn, direction = "both", start = as.Date("2024-01-01"),
+    end = as.Date("2024-01-02"), sessions = "collapse"
+  )
+  reach_numeric <- reachability(
+    dn, direction = "both", start = -1, end = 0,
+    sessions = "collapse"
+  )
+  expect_equal(as.data.frame(reach_dated), as.data.frame(reach_numeric))
+
+  centrality_dated <- legacy_centrality(
+    dn, measure = "reach", scope = "temporal",
+    start = as.Date("2024-01-01"), end = as.Date("2024-01-02"),
+    sessions = "collapse"
+  )
+  centrality_numeric <- legacy_centrality(
+    dn, measure = "reach", scope = "temporal",
+    start = -1, end = 0, sessions = "collapse"
+  )
+  expect_equal(as.data.frame(centrality_dated),
+               as.data.frame(centrality_numeric))
+  expect_error(paths(
+    dn, from = "A", start = as.Date("2024-01-04"),
+    end = as.Date("2024-01-02")
+  ), class = "dynet_bad_input")
+})
+
+test_that("one-sided windows retain zero rows for non-overlapping sessions", {
+  spells <- data.frame(
+    from = c("A", "C"), to = c("B", "D"),
+    start = c(2, 10), end = c(2, 10), session = c("early", "late")
+  )
+  dn <- quiet_dynet(spells, session = "session")
+  forward <- as.data.frame(reachability(
+    dn, direction = "forward", end = 5, sessions = "separate"
+  ))
+  backward <- as.data.frame(reachability(
+    dn, direction = "backward", start = 5, sessions = "separate"
+  ))
+  centrality <- as.data.frame(legacy_centrality(
+    dn, measure = "reach", scope = "temporal",
+    end = 5, sessions = "separate"
+  ))
+
+  expect_true(all(subset(forward, session == "late")$value == 0))
+  expect_true(all(subset(backward, session == "early")$value == 0))
+  expect_true(all(subset(centrality, session == "late")$value == 0))
+  expect_equal(subset(forward, session == "early" & node == "A")$value,
+               1 / 3)
+  expect_equal(subset(centrality, session == "early" & node == "A")$value,
+               1 / 3)
+})
+
+test_that("invalid and conflicting path bounds are classed errors", {
+  numeric <- quiet_dynet(data.frame(
+    from = "A", to = "B", start = 0, end = 1
+  ))
+
+  expect_error(paths(numeric, "A", start = 2, end = 1),
+               class = "dynet_bad_input")
+  expect_error(paths(numeric, "A", end = -1),
+               class = "dynet_bad_input")
+  expect_error(paths(
+    numeric, "B", direction = "backward", start = 2
+  ), class = "dynet_bad_input")
+  expect_error(paths(numeric, "A", at = 0, end = 1),
+               class = "dynet_bad_input")
+  expect_error(reachability(numeric, at = 0, start = 0),
+               class = "dynet_bad_input")
+  expect_error(paths(numeric, "A", start = c(0, 1)),
+               class = "dynet_bad_input")
+  expect_error(paths(numeric, "A", end = Inf),
+               class = "dynet_bad_input")
+  expect_error(paths(numeric, "A", start = as.Date("2024-01-01")),
+               class = "dynet_bad_input")
+})
+
+test_that("bounded path results translate and scale with their window", {
+  base <- data.frame(
+    from = c("A", "B", "C"), to = c("B", "C", "D"),
+    start = c(2, 5, 7), end = c(4, 5, 9)
+  )
+  shifted <- transform(base, start = start + 10, end = end + 10)
+  scaled <- transform(base, start = start * 2, end = end * 2)
+  original <- as.data.frame(paths(
+    quiet_dynet(base), "A", start = 1, end = 5
+  ))
+  translated <- as.data.frame(paths(
+    quiet_dynet(shifted), "A", start = 11, end = 15
+  ))
+  stretched <- as.data.frame(paths(
+    quiet_dynet(scaled), "A", start = 2, end = 10
+  ))
+
+  expect_equal(translated$arrival_time, original$arrival_time + 10)
+  expect_equal(translated$latency, original$latency)
+  expect_equal(stretched$arrival_time, original$arrival_time * 2)
+  expect_equal(stretched$latency, original$latency * 2)
+  expect_identical(translated$reachable, original$reachable)
+  expect_identical(stretched$n_hops, original$n_hops)
+})
+

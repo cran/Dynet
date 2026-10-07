@@ -1,0 +1,536 @@
+---
+title: "Building and inspecting a temporal network"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Building and inspecting a temporal network}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+```{r setup}
+library(Dynet)
+```
+
+This vignette describes how to construct and inspect temporal networks with `dynet()`. It covers four relational data formats, vertex attributes, sessions, observation periods, and vertex activity spells. It also introduces network editing and descriptive measures. `vignette("dynet")` provides a worked analysis of a simulated classroom network.
+
+## The four input formats
+
+`dynet()` accepts interval, contact, threaded, and co-presence data in tidy format. These formats differ in how relational endpoints and timing are recorded. The constructor selects a format from the supplied arguments and recognised timing columns, or uses the format specified explicitly by the user.
+
+### Interval data
+
+Interval data record the onset and termination of each relationship. Each relational spell identifies two endpoints and the period during which their connection is active.
+
+`school_contacts` contains 240 simulated face-to-face contacts among fourteen students over approximately three weeks. The supplied variables `from` and `to` identify the initiating and receiving students. `start` and `end` record onset and termination in days since the beginning of observation. Decimal values allow contacts to begin and end within a day.
+
+```{r school-data}
+head(school_contacts, 4)
+```
+
+`dynet()` constructs the network directly from these data. Printing the result reports its format, direction, vertex and spell counts, distinct pairs, observation period, and measurement grid, followed by the first relational spells.
+
+```{r school}
+school <- dynet(school_contacts)
+school
+```
+
+Column recognition is case-insensitive. The endpoint aliases `from`/`to`, `sender`/`receiver`, and `source`/`target` are equivalent, as are `start`/`end` and `onset`/`terminus` for interval boundaries. Explicit column specification is needed only when names do not match recognised aliases or their interpretation is ambiguous. A `duration` column may replace `end`; termination is then calculated as `start + duration`.
+
+The constructor standardises the supplied variables and derives additional quantities where needed. Here, it calculates `duration = end - start` and assigns `weight = 1` because no multiplicity variable is supplied or recognised.
+
+The 240 spells connect 110 distinct ordered pairs. With fourteen vertices and self-links excluded, there are $14 \times 13 = 182$ possible ordered pairs. Approximately 60% are connected at least once during observation. This aggregate proportion does not indicate how many pairs are connected within any particular interval.
+
+### Contact data
+
+Contact data record a timestamp for each interaction without a termination time. The resulting temporal network is a contact sequence: each spell is instantaneous, with equal onset and termination and zero duration.
+
+`forum_posts` is a simulated course forum dataset containing sender and receiver identifiers, a `POSIXct` timestamp, and a thread identifier.
+
+```{r forum-data}
+head(forum_posts, 3)
+```
+
+The following call explicitly identifies the timestamp column. Its recognised name also allows the constructor to infer it when `time` is omitted.
+
+```{r clicks}
+clicks <- dynet(forum_posts, time = "timestamp")
+clicks
+```
+
+The 241 posts produce 241 instantaneous spells among twenty vertices, connecting 172 of the 380 possible ordered pairs. Calendar times are converted to elapsed time from the first event, with the unit selected automatically from the temporal span. Here, the span is approximately 55 days, so the unit and default measurement interval are days. Numeric times retain their supplied scale and are labelled `step`.
+
+### Threaded data
+
+Threaded data contain timestamps and discussion identifiers. A discussion-based duration represents the period during which a post remains part of an ongoing exchange, as subsequent interactions respond to or address that discussion. Following the approach of Saqr and Nouri (2020), Dynet treats a post as active from its timestamp until the last retained post in the same thread. For a post at time $t_i$ in thread $T$, the relational spell is $[t_i, \max_{j \in T} t_j)$. A final post has zero duration. This is a modelling assumption about discussion activity, rather than a directly observed contact duration.
+
+Specifying `thread` selects this construction. The optional `nodes` argument supplies vertex attributes.
+
+```{r forum}
+forum <- dynet(forum_posts, thread = "thread", nodes = forum_people)
+forum
+```
+
+The network retains the same 241 spells, twenty vertices, and 172 ordered pairs as the contact representation. Each spell now carries its thread identifier and a derived termination time. The 62 thread-closing posts have zero duration; the remaining spells have positive duration.
+
+`summary(..., temporal_density = TRUE)` compares the two representations using both mean snapshot density and temporal density. Temporal density is optional because its calculation integrates activity over eligible vertex pairs and can be more computationally demanding.
+
+```{r clicks-summary}
+summary(clicks, temporal_density = TRUE)
+```
+
+```{r forum-summary}
+summary(forum, temporal_density = TRUE)
+```
+
+**Mean snapshot density** averages the proportion of ordered pairs connected at some point within each measurement bin. **Temporal density** measures the proportion of available pair-time occupied by connections. For a fixed population of $n$ vertices observed continuously for duration $\tau$, with self-links excluded,
+
+$$D_T = \frac{\sum_r U_r}{n(n - 1)\,\tau},$$
+
+where $U_r$ is the total duration for which ordered pair $r$ has at least one active spell. Overlapping spells on the same pair contribute their union duration.
+
+The contact representation has mean snapshot density 0.0112 and temporal density 0: instantaneous contacts count within bins but occupy no positive duration. The threaded representation has mean snapshot density 0.0248 and temporal density 0.0139. Its connections occupy 290.8 pair-days across 380 possible pairs and 54.96 observed days. These differences follow from the specified duration rule, which is applied when the threaded format is selected.
+
+### Co-presence data
+
+Co-presence data record actors’ participation in shared occasions rather than direct relationships between actors. A projection connects actors who attend the same occasion. `seminar_attendance` records attendance at weekly seminars over one term.
+
+```{r seminar-data}
+head(seminar_attendance, 3)
+```
+
+Specify `actor` and `group` to identify the participant and occasion columns.
+
+```{r seminars}
+seminars <- dynet(seminar_attendance, actor = "student", group = "seminar")
+seminars
+```
+
+Each seminar contributes a spell for every pair of attendees, tagged with that seminar’s identifier. A seminar with $k$ attendees therefore contributes $\binom{k}{2}$ spells. Across all seminars, the resulting network contains 417 spells and 224 distinct pairs among 24 students. These pairs represent approximately 81% of the $\binom{24}{2} = 276$ possible unordered pairs.
+
+Co-presence is symmetric, so the constructor creates an undirected network even if `directed = TRUE` is supplied. Here, the input supplies a date without a termination time, so the projected spells are instantaneous contacts on the seminar date.
+
+### Choosing the format
+
+With the default `format = "auto"`, specifying both `actor` and `group` selects co-presence; otherwise, specifying `thread` selects threaded data. If neither condition applies, an explicitly specified or automatically recognised termination or duration column selects interval data. Otherwise, the constructor selects contact data.
+
+A thread column is not sufficient by itself to select threaded construction. Consequently, the following call interprets `forum_posts` as a contact sequence:
+
+```{r auto}
+auto <- dynet(forum_posts)
+auto
+```
+
+Set `format` to `"interval"`, `"contact"`, `"threaded"`, or `"copresence"` to select the representation explicitly. The required variables must still be available through recognised aliases or explicit column arguments.
+
+## Inspecting the network
+
+`summary()` returns network properties in a tidy table.
+
+```{r school-summary}
+summary(school)
+```
+
+`vertices` reports the size of the vertex set, `edge spells` counts relational spells, and `distinct pairs` counts the endpoint pairs they connect. The classroom network has 240 spells on 110 ordered pairs, indicating repeated contact for at least some pairs.
+
+`time unit` is `step` for numeric input or the selected calendar unit for date-time input. Without explicit observation bounds, the observed range extends from the earliest onset to the latest termination. `bin width` records the construction interval, and `time bins` counts the intervals covering that range. Here, 22 bins cover 21.52 days; the final bin is shorter than one day.
+
+`mean snapshot density` is 0.0829: approximately 8.3% of possible ordered pairs are connected in an average daily bin, compared with about 60% across the full observation period. `temporal density` is calculated only when requested.
+
+`as.data.frame()` extracts the constructed relational spells, including `duration` and `weight`.
+
+```{r spells}
+spells <- as.data.frame(school)
+head(spells, 4)
+```
+
+Use `what = "nodes"` to extract vertex attributes. For `forum`, these include the attributes supplied through `nodes`.
+
+```{r nodes}
+forum_nodes <- as.data.frame(forum, what = "nodes")
+head(forum_nodes, 4)
+```
+
+Other options are `"bins"` for the measurement grid, `"network"` for the aggregate edge list, `"observations"` for the observation calendar, `"observed_edges"` for spells clipped to that calendar, and `"vertex_spells"` for declared vertex activity.
+
+```{r bins}
+bins <- as.data.frame(school, what = "bins")
+head(bins, 4)
+```
+
+Each bin extends from `lo` to `hi` and is labelled by its starting `time`. Bins are half-open except for the final bin, whose `closed` flag includes an event at the final observed instant.
+
+```{r network}
+pairs <- as.data.frame(school, what = "network")
+head(pairs, 4)
+```
+
+The aggregate edge list groups spells by their relational endpoints and sums their weights. Because every spell in `school` has weight 1, the aggregate `weight` equals the spell count: Dan contacted Ana twice and Gita contacted Ana three times. Aggregation summarises these relationships without retaining their temporal order.
+
+## Direction, loops, weights and attributes
+
+The following dataset contains five spells among three vertices, including a self-link from `A` to `A`. The supplied `posts` variable records the number of messages represented by each spell.
+
+```{r tiny}
+tiny <- data.frame(
+  from  = c("A", "B", "A", "C", "A"),
+  to    = c("B", "A", "C", "A", "A"),
+  start = c(0, 1, 2, 3, 4),
+  end   = c(2, 3, 5, 4, 6),
+  posts = c(3, 1, 2, 5, 1)
+)
+```
+
+Set `directed = FALSE` to construct an undirected network and use `weight` to identify the multiplicity variable. Columns named `weight`, `weights`, or `strength` are recognised automatically; `posts` requires explicit specification.
+
+```{r undirected}
+undirected <- dynet(tiny, directed = FALSE, weight = "posts")
+undirected
+```
+
+The result contains four spells on two unordered pairs. The spells `A -> B` and `B -> A` connect the same undirected pair but retain their individual onset and termination times; they overlap during $[1, 2)$. The constructor removes the self-link because `loops = FALSE` by default and records the supplied `posts` values as `weight`.
+
+Set `loops = TRUE` to retain self-links. Under total degree, a retained loop contributes twice, once at each endpoint.
+
+```{r loops}
+with_loops <- dynet(tiny, loops = TRUE)
+with_loops
+```
+
+This call retains direction and all five spells, producing five distinct ordered pairs. Because `weight` is not specified and `posts` is not a recognised weight alias, `posts` remains a spell attribute and the constructor assigns the default weight of 1.
+
+`interval` sets the default spacing of measurements in the network’s time unit.
+
+```{r interval}
+tiny_dn <- dynet(tiny, interval = 2)
+summary(tiny_dn)
+```
+
+An interval of 2 covers the five-unit observation period with three bins, the last of which is partial. Their active-pair counts are 2, 3, and 1 out of six possible ordered pairs. Mean snapshot density is therefore $(2/6 + 3/6 + 1/6)/3 = 1/3$.
+
+The `nodes` argument supplies a vertex table whose identifier column is recognised by name. `groups` selects an attribute to store as the vertex grouping; `cograph::splot()` can then use it for vertex colours.
+
+```{r roles}
+roles <- dynet(forum_posts, thread = "thread",
+               nodes = forum_people, groups = "role")
+role_nodes <- as.data.frame(roles, what = "nodes")
+head(role_nodes, 4)
+```
+
+**Mixing** describes connections within and between groups defined by a vertex attribute. `mixing()` counts distinct connected vertex pairs for each ordered group pair and measurement bin. Connections counted in a bin need not be active simultaneously.
+
+```{r mixing}
+role_mixing <- mixing(roles, attribute = "role")
+head(role_mixing, 4)
+```
+
+Three roles produce nine ordered group pairs in each of 55 daily bins, giving 495 observations. In the first bin, no connection involves a facilitator. These are connection counts, not probabilities or counts of simultaneous interactions.
+
+## Sessions
+
+Sessions identify contexts within which time-respecting paths may be constrained, such as courses, terms, or class periods. By default, a path must use spells assigned to a single session. Session labels do not reset the clock.
+
+Use `session` during construction to identify an existing session column. Alternatively, `set_tie_sessions()` can assign sessions from spell onset times. The following call assigns spells to weeks using boundaries at days 7 and 14.
+
+```{r sessioned}
+sessioned <- set_tie_sessions(school, breaks = c(7, 14),
+                              labels = c("week_1", "week_2", "week_3"))
+summary(sessioned)
+```
+
+The summary now reports three sessions. The `sessions` argument controls how path searches use these assignments.
+
+```{r collapse}
+collapsed <- paths(sessioned, from = "Ana", sessions = "collapse")
+summary(collapsed)
+```
+
+With `sessions = "collapse"`, session labels are ignored and the search uses the complete temporal sequence. Ana reaches all thirteen other students, with median latency 7.51 days and a maximum of four hops.
+
+```{r bounded}
+inside <- paths(sessioned, from = "Ana", sessions = "bounded")
+summary(inside)
+```
+
+With `sessions = "bounded"`, each path uses spells from a single session. The search compares session-specific results and retains the best result for each destination. Ana still reaches all thirteen students, but median latency increases to 8.21 days, maximum latency to 13.21 days, and maximum hop count to five. Earlier paths that combined spells assigned to different weeks are no longer admissible.
+
+```{r separate}
+per_session <- paths(sessioned, from = "Ana", sessions = "separate")
+summary(per_session)
+```
+
+With `sessions = "separate"`, results are reported separately for each session. Ana reaches six students in week 1, thirteen in week 2, and five in week 3, corresponding to proportions of 0.462, 1, and 0.385. The longest path within week 2 uses six hops.
+
+`"bounded"` is the default. Without session assignments, it gives the same result as `"collapse"`. `"separate"` requires session assignments and otherwise raises `dynet_bad_input`.
+
+## Observation windows
+
+Without explicit bounds, the observation period extends from the earliest spell onset to the latest termination. These event-derived limits may differ from the study’s actual observation period. Specifying `observation_start` and `observation_end` defines the measurement horizon, including periods when no interaction was recorded.
+
+```{r observation}
+bounded <- dynet(school_contacts, observation_start = 0, observation_end = 14)
+summary(bounded)
+```
+
+Restricting observation to days 0–14 produces fourteen bins instead of 22. Mean snapshot density is 0.0922, compared with 0.0829 across the full period. This difference reflects the connections observed during the selected period.
+
+Observation bounds change the measurement period without deleting the original spells: `as.data.frame()` still returns them. Positive-duration spells contribute their intersection with the observation window, and instantaneous events on either observation boundary are retained.
+
+For interrupted observation, supply `observation_spells` with the start and end of each observed period. Overlapping or adjacent periods are merged. `what = "observations"` extracts the resulting calendar.
+
+```{r gapped}
+gapped <- dynet(
+  school_contacts,
+  observation_spells = data.frame(start = c(0, 12), end = c(8, 21))
+)
+as.data.frame(gapped, what = "observations")
+```
+
+```{r gapped-summary}
+summary(gapped)
+```
+
+The two periods contain eight and nine observed days. The measurement grid restarts within each period, yielding seventeen bins and none during the four-day gap. Exposure calculations use the seventeen observed days, and events within the gap are excluded from measurements.
+
+`set_observations()` replaces the observation calendar after construction. `clear_observations()` restores continuous observation from the earliest raw onset to the latest raw termination.
+
+```{r set-observations}
+narrowed <- set_observations(school, start = 2, end = 10)
+as.data.frame(narrowed, what = "observations")
+```
+
+```{r clear-observations}
+continuous <- clear_observations(gapped)
+as.data.frame(continuous, what = "observations")
+```
+
+## Vertex activity spells
+
+Observation periods describe when data collection occurred. Vertex activity spells describe when individual vertices were eligible to participate, for example after enrolment or before departure. This distinction separates an eligible participant with no connections from a participant who was absent.
+
+Supply `vertex_spells` as a table containing `node`, `start`, and `end`. A vertex without an explicit activity declaration is treated as eligible throughout observation.
+
+```{r arrivals}
+arrivals <- data.frame(
+  node  = c("Ana", "Ben"),
+  start = c(0, 7),
+  end   = c(21.52, 21.52)
+)
+scheduled <- dynet(school_contacts, vertex_spells = arrivals)
+as.data.frame(scheduled, what = "vertex_spells")
+```
+
+Ben is declared eligible from day 7. His degree is `NA` in earlier bins, rather than zero. The following calls compare degree with and without this declaration.
+
+```{r school-degree}
+school_degree <- centrality_series(school, measure = "degree")
+head(school_degree, 4)
+```
+
+```{r scheduled-degree}
+scheduled_degree <- centrality_series(scheduled, measure = "degree")
+head(scheduled_degree, 4)
+```
+
+`summary()` excludes missing values when summarising the trajectories, so periods before declared arrival no longer contribute to the mean.
+
+```{r school-degree-summary}
+school_degree_summary <- summary(school_degree)
+head(school_degree_summary, 3)
+```
+
+```{r scheduled-degree-summary}
+scheduled_degree_summary <- summary(scheduled_degree)
+head(scheduled_degree_summary, 3)
+```
+
+Ana’s mean degree remains 2.18 across 22 bins. Ben’s mean changes from 2.00 across 22 bins to 2.13 across fifteen eligible bins. His standard deviation decreases from 1.23 to 1.13, and his peak moves from day 4 to day 11. The eleven spells recorded for Ben before day 7 remain in the raw data but are excluded from the eligible measurement period. This example illustrates the effect of an activity declaration; in an analysis, declarations should reflect the study’s participation criteria.
+
+Use `set_vertex_spells()` to replace declared activity and `add_vertex_spells()` to add periods of activity.
+
+```{r vertex-spells-edit}
+activity <- set_vertex_spells(school, arrivals)
+extended <- add_vertex_spells(activity,
+                              data.frame(node = "Cara", start = 3, end = 12))
+as.data.frame(extended, what = "vertex_spells")
+```
+
+## Editing a network
+
+Editing functions return a new network and leave their input unchanged. They update the relational spells and associated network representation together. Use these functions for temporal edits so that timing and network structure remain consistent.
+
+`add_nodes()` adds vertices and attributes. `add_ties()` adds relational spells whose endpoints already exist in the vertex set.
+
+```{r add}
+step1 <- add_nodes(school, data.frame(name = "Nova", role = "exchange"))
+step2 <- add_ties(step1, data.frame(
+  from = "Ana", to = "Nova", start = 4, end = 6
+))
+summary(step2)
+```
+
+The edited network contains fifteen vertices, 241 spells, and 111 distinct pairs. Original vertices have `NA` for the newly introduced `role` attribute. Mean snapshot density decreases from 0.0829 to 0.0723 despite the added connection: the additional vertex increases the number of possible ordered pairs from 182 to 210.
+
+The original network remains unchanged.
+
+```{r original}
+summary(school)
+```
+
+`remove_ties()` selects spells by their endpoints and onset, while `rename_nodes()` updates vertex names using a mapping from old to new names.
+
+```{r remove}
+step3 <- remove_ties(step2, from = "Ana", to = "Nova", start = 4)
+summary(step3)
+```
+
+```{r rename}
+renamed <- rename_nodes(step2, c(Nova = "Nova B."))
+renamed_nodes <- as.data.frame(renamed, what = "nodes")
+tail(renamed_nodes, 3)
+```
+
+Removing the added spell restores the original 240 spells and 110 connected pairs, but Nova remains as an isolated vertex. Mean density is therefore 0.0719, using the enlarged denominator of 210 possible pairs.
+
+`induce_subgraph()` restricts the network to selected vertices or spells. `nodes` accepts vertex names, and `ties` can specify a condition over the spell table.
+
+```{r induce}
+five <- induce_subgraph(school, nodes = c("Ana", "Ben", "Cara", "Dan", "Eve"))
+summary(five)
+```
+
+The five selected students share eighteen spells on eleven of twenty possible ordered pairs. Without explicit observation bounds, the subgraph’s observation period follows its own spell boundaries, here days 3.17–21.33. Declare `observation_start` and `observation_end` when the original study period should be retained.
+
+## Descriptive measures
+
+Dynet provides graph-level measures describing the network as a whole and vertex-level measures describing individual positions. For window-based calculations, spells active within each window form a snapshot on which the selected measures are computed. Graph-level trajectories are obtained with `metrics()`; vertex centrality trajectories use `centrality_series()`.
+
+The following call requests three graph-level measures in a tidy result identified by `time` and `measure`.
+
+```{r basics}
+basics <- metrics(school, measure = c("density", "edges", "active_nodes"))
+head(basics, 6)
+```
+
+`edges` counts distinct connected ordered pairs, `density` divides that count by the possible pairs, and `active_nodes` counts vertices with at least one connection. On day 0, ten connections involve thirteen students, giving density 0.055. On day 1, eight connections involve eight students, giving density 0.044.
+
+`summary()` reports the mean, standard deviation, range, and peak time for each measure.
+
+```{r six}
+six <- metrics(school, measure = c("density", "edges", "active_nodes",
+                                   "components", "transitivity",
+                                   "reciprocity"))
+summary(six)
+```
+
+Across 22 bins, mean density is 0.083 and reaches 0.165 on day 14, when thirty pairs are connected. An average of 12.1 students have a connection within a daily bin, with a minimum of seven.
+
+`components` counts weakly connected components, ignoring direction and including isolated vertices. It averages 3.6 and equals 1 on day 14. Its maximum of nine occurs in the final partial bin, when six connections leave seven students isolated.
+
+`reciprocity` is the proportion of directed connections $i \to j$ for which $j \to i$ is also present in the window. It averages 0.145 and reaches 0.467 on day 14. `transitivity` is the proportion of two-paths $i \to j \to k$ closed by $i \to k$, following the weak convention of `sna::gtrans()`. It averages 0.115 and peaks at 0.4 on day 11. Both measures describe snapshot structure; they do not establish the temporal order of the constituent interactions.
+
+`step` specifies the interval between measurements, while `window` specifies the duration covered from each measurement time. Equal values produce non-overlapping windows. A larger `window` produces overlapping, rolling measurements.
+
+```{r rolling}
+rolling <- metrics(school, measure = "density", step = 1, window = 7)
+head(rolling, 4)
+```
+
+The first seven-day window contains 59 connected pairs, giving density 0.324, compared with ten pairs and density 0.055 in the first day alone. Wider windows combine more relationships while providing less detail about changes within each interval.
+
+```{r density-plot}
+school_density <- metrics(school, measure = "density")
+plot(school_density)
+```
+
+Snapshot measures count a connected pair once within a window regardless of how long or how often it is connected. `temporal_density` instead measures the occupied proportion of eligible pair-time. `onset_intensity` divides the number of spell onsets by eligible pair-time, giving a rate of formation per unit of relational opportunity. For this fixed population, eligible pair-time is $n(n-1)$ multiplied by observed duration.
+
+```{r integrated}
+integrated <- metrics(school, measure = c("temporal_density", "onset_intensity"),
+                      step = 7, window = 7)
+integrated
+```
+
+Each complete week contains $182 \times 7 = 1274$ eligible pair-days. Onset intensities of 0.0604, 0.0840, and 0.0440 correspond to 77, 107, and 56 spell onsets, respectively. The final partial bin contains no onsets.
+
+Temporal density is highest in the second week at 0.0386, corresponding to 49.2 occupied pair-days. It decreases to 0.0181 in the final partial bin. These values account for connection duration, whereas snapshot density records whether a connection occurred at any point in a bin.
+
+`snapshots()` lists the connections contributing to each snapshot. Supplying `at` selects a measurement time; omitting it returns the measurement grid.
+
+```{r snapshot}
+at_five <- snapshots(school, at = 5)
+at_five
+```
+
+At day 5, the result contains sixteen connected pairs, matching the `edges` measure for that bin. Each pair has a weight and a count of contributing spells.
+
+`events()` counts spell onsets and terminations within each bin.
+
+```{r events}
+changes <- events(school)
+head(changes, 6)
+```
+
+The first bin contains eleven onsets and seven terminations; the second contains four onsets and six terminations. These are spell counts, which may include repeated relationships between the same endpoints.
+
+`durations()` summarises the length of relational spells. By default, it returns the number of spells (`events`), summed duration (`total`), and mean duration (`mean`) for each ordered pair. `unit` selects pair-level histories (`"pair"`), individual relational spells (`"spell"`), vertex activity (`"vertex_activity"` or `"vertex_spell"`), or spells incident to vertices (`"node_ties"`).
+
+```{r durations}
+tie_durations <- durations(school)
+head(tie_durations, 6)
+```
+
+Ana contacted Gita five times and Jonas four times, and Cara, Iris, and Kira once each. The result contains three measures for each of 110 pairs, giving 330 observations.
+
+```{r spell-durations}
+spell_durations <- durations(school, unit = "spell")
+head(spell_durations, 4)
+```
+
+With `unit = "spell"`, the result describes the 240 individual spells. Spell identifiers refer to the constructed spell table. Ana’s three contacts with Dan lasted 0.32, 0.51, and 0.19 days.
+
+```{r node-durations}
+node_durations <- durations(school, unit = "node_ties", mode = "all")
+head(node_durations, 4)
+```
+
+With `unit = "node_ties"` and `mode = "all"`, `events` counts spells incident to each vertex in either direction. Ana participates in 36 spells and Ben in 34.
+
+## Collapsing to a static network
+
+`collapse_network()` aggregates a selected observation period into a static weighted network. `start` and `end` delimit that period. The result contains connected pairs and their available weight summaries.
+
+```{r collapse-network}
+flat <- collapse_network(school, start = 0, end = 7)
+flat
+```
+
+The first week contains 59 connected pairs. For each pair, the result records binary presence (`binary`), duration with at least one active spell (`union_duration`), summed spell duration (`total_duration`), and the proportion of observed time connected (`duration_fraction`). It also records spell counts, weight summaries, and first and last contact times.
+
+Ana and Jonas have three spells within the first week, totalling 1.44 days, or approximately 21% of the week. Their first and last observed boundaries are days 2.12 and 7.00. Union and total duration coincide because their spells do not overlap.
+
+Use `weight` to select the summary used as the static edge weight.
+
+```{r first-week}
+first_week <- collapse_network(school, start = 0, end = 7,
+                               weight = "union_duration")
+first_week
+```
+
+The collapsed network supports static analyses such as layouts and community detection. Its aggregate summaries do not retain the complete timing of individual spells, so time-respecting paths must be examined using the temporal network.
+
+## References
+
+Holme, P., & Saramäki, J. (2012). Temporal networks. *Physics Reports*, 519(3),
+97–125.
+
+Kempe, D., Kleinberg, J., & Kumar, A. (2002). Connectivity and inference
+problems for temporal networks. *Journal of Computer and System Sciences*,
+64(4), 820–842.
+
+Saqr, M., & Nouri, J. (2020). High resolution temporal network analysis to
+understand and improve collaborative learning. In *Proceedings of the Tenth
+International Conference on Learning Analytics & Knowledge* (pp. 314–319). ACM.

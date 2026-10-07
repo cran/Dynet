@@ -1,0 +1,36 @@
+Package: Dynet
+Title: Tidy Temporal Network Analysis
+Version: 0.5.1
+Authors@R: person("Mohammed", "Saqr", role = c("aut", "cre", "cph"),
+    email = "saqr@saqr.me")
+Description: Building, analysis and visualisation of temporal networks.
+    Supports several formats of relational data: interval data with
+    explicit start and end times, contact data of instantaneous events,
+    threaded interactions such as forum or chat data, and co-presence
+    logs. Every analysis returns a tidy data frame carrying proper vertex
+    labels. Metrics cover time-varying centrality, graph-level structure,
+    edge formation and dissolution, burstiness, time-respecting paths,
+    reachability and mixing. Offers a wide variety of network
+    visualisations and animations, as well as plots of temporal network
+    metrics across time.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Language: en-GB
+Depends: R (>= 4.1)
+Imports: cograph, ggplot2, grDevices, graphics
+Suggests: av, gifski, knitr, network, networkDynamic, rmarkdown,
+        testthat (>= 3.0.0)
+VignetteBuilder: knitr
+RoxygenNote: 7.3.3
+Config/testthat/edition: 3
+URL: https://pak.dynasite.org/Dynet/, https://github.com/mohsaqr/Dynet
+BugReports: https://github.com/mohsaqr/Dynet/issues
+LazyData: true
+Config/Needs/website: av, gifski, igraph, network, networkDynamic, sna,
+        tsna
+NeedsCompilation: no
+Packaged: 2026-09-27 17:43:04 UTC; mohammedsaqr
+Author: Mohammed Saqr [aut, cre, cph]
+Maintainer: Mohammed Saqr <saqr@saqr.me>
+Repository: CRAN
+Date/Publication: 2026-10-07 09:10:10 UTC

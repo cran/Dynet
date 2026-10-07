@@ -1,0 +1,1506 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Building and inspecting a temporal network</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Building and inspecting a temporal
+network</h1>
+
+
+
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(Dynet)</span></code></pre></div>
+<p>This vignette describes how to construct and inspect temporal
+networks with <code>dynet()</code>. It covers four relational data
+formats, vertex attributes, sessions, observation periods, and vertex
+activity spells. It also introduces network editing and descriptive
+measures. <code>vignette(&quot;dynet&quot;)</code> provides a worked analysis of a
+simulated classroom network.</p>
+<div id="the-four-input-formats" class="section level2">
+<h2>The four input formats</h2>
+<p><code>dynet()</code> accepts interval, contact, threaded, and
+co-presence data in tidy format. These formats differ in how relational
+endpoints and timing are recorded. The constructor selects a format from
+the supplied arguments and recognised timing columns, or uses the format
+specified explicitly by the user.</p>
+<div id="interval-data" class="section level3">
+<h3>Interval data</h3>
+<p>Interval data record the onset and termination of each relationship.
+Each relational spell identifies two endpoints and the period during
+which their connection is active.</p>
+<p><code>school_contacts</code> contains 240 simulated face-to-face
+contacts among fourteen students over approximately three weeks. The
+supplied variables <code>from</code> and <code>to</code> identify the
+initiating and receiving students. <code>start</code> and
+<code>end</code> record onset and termination in days since the
+beginning of observation. Decimal values allow contacts to begin and end
+within a day.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">head</span>(school_contacts, <span class="dv">4</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="co">#&gt;    from   to start  end</span></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="co">#&gt; 1 Jonas  Dan  0.00 1.10</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="co">#&gt; 2  Gita  Ana  0.14 0.98</span></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a><span class="co">#&gt; 3   Leo Mira  0.15 0.42</span></span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a><span class="co">#&gt; 4   Leo Iris  0.15 0.96</span></span></code></pre></div>
+<p><code>dynet()</code> constructs the network directly from these data.
+Printing the result reports its format, direction, vertex and spell
+counts, distinct pairs, observation period, and measurement grid,
+followed by the first relational spells.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>school <span class="ot">&lt;-</span> <span class="fu">dynet</span>(school_contacts)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>school</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co">#&gt; # Temporal network (interval format, directed) | a cograph netobject</span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co">#&gt; # 14 vertices | 240 edge spells | 110 distinct pairs</span></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a><span class="co">#&gt; # observed from 0 to 21.52 step, binned every 1</span></span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a><span class="co">#&gt;   from   to start  end duration weight</span></span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a><span class="co">#&gt;  Jonas  Dan  0.00 1.10     1.10      1</span></span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a><span class="co">#&gt;   Gita  Ana  0.14 0.98     0.84      1</span></span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a><span class="co">#&gt;    Leo Mira  0.15 0.42     0.27      1</span></span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a><span class="co">#&gt;    Leo Iris  0.15 0.96     0.81      1</span></span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a><span class="co">#&gt;   Kira  Ben  0.33 0.69     0.36      1</span></span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a><span class="co">#&gt;    Leo Iris  0.38 0.50     0.12      1</span></span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a><span class="co">#&gt; # 234 more spells. summary() describes the network; plot() draws it.</span></span></code></pre></div>
+<p>Column recognition is case-insensitive. The endpoint aliases
+<code>from</code>/<code>to</code>,
+<code>sender</code>/<code>receiver</code>, and
+<code>source</code>/<code>target</code> are equivalent, as are
+<code>start</code>/<code>end</code> and
+<code>onset</code>/<code>terminus</code> for interval boundaries.
+Explicit column specification is needed only when names do not match
+recognised aliases or their interpretation is ambiguous. A
+<code>duration</code> column may replace <code>end</code>; termination
+is then calculated as <code>start + duration</code>.</p>
+<p>The constructor standardises the supplied variables and derives
+additional quantities where needed. Here, it calculates
+<code>duration = end - start</code> and assigns <code>weight = 1</code>
+because no multiplicity variable is supplied or recognised.</p>
+<p>The 240 spells connect 110 distinct ordered pairs. With fourteen
+vertices and self-links excluded, there are <span class="math inline">\(14 \times 13 = 182\)</span> possible ordered
+pairs. Approximately 60% are connected at least once during observation.
+This aggregate proportion does not indicate how many pairs are connected
+within any particular interval.</p>
+</div>
+<div id="contact-data" class="section level3">
+<h3>Contact data</h3>
+<p>Contact data record a timestamp for each interaction without a
+termination time. The resulting temporal network is a contact sequence:
+each spell is instantaneous, with equal onset and termination and zero
+duration.</p>
+<p><code>forum_posts</code> is a simulated course forum dataset
+containing sender and receiver identifiers, a <code>POSIXct</code>
+timestamp, and a thread identifier.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a><span class="fu">head</span>(forum_posts, <span class="dv">3</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="co">#&gt;       sender   receiver           timestamp    thread</span></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="co">#&gt; 1 student_14 student_05 2024-09-02 19:59:20 thread_47</span></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="co">#&gt; 2 student_10 student_05 2024-09-03 13:24:23 thread_47</span></span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a><span class="co">#&gt; 3  teacher_A student_09 2024-09-03 16:31:58 thread_11</span></span></code></pre></div>
+<p>The following call explicitly identifies the timestamp column. Its
+recognised name also allows the constructor to infer it when
+<code>time</code> is omitted.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>clicks <span class="ot">&lt;-</span> <span class="fu">dynet</span>(forum_posts, <span class="at">time =</span> <span class="st">&quot;timestamp&quot;</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>clicks</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="co">#&gt; # Temporal network (contact format, directed) | a cograph netobject</span></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="co">#&gt; # 20 vertices | 241 edge spells | 172 distinct pairs</span></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="co">#&gt; # observed from 0 to 54.96387 days, binned every 1</span></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a><span class="co">#&gt;        from         to     start       end duration weight</span></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="co">#&gt;  student_14 student_05 0.0000000 0.0000000        0      1</span></span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="co">#&gt;  student_10 student_05 0.7257216 0.7257216        0      1</span></span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a><span class="co">#&gt;   teacher_A student_09 0.8559934 0.8559934        0      1</span></span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a><span class="co">#&gt;  student_04 student_05 1.1715344 1.1715344        0      1</span></span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a><span class="co">#&gt;  student_02 student_09 1.2382611 1.2382611        0      1</span></span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a><span class="co">#&gt;  student_06  teacher_A 1.9797595 1.9797595        0      1</span></span>
+<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a><span class="co">#&gt; # 235 more spells. summary() describes the network; plot() draws it.</span></span></code></pre></div>
+<p>The 241 posts produce 241 instantaneous spells among twenty vertices,
+connecting 172 of the 380 possible ordered pairs. Calendar times are
+converted to elapsed time from the first event, with the unit selected
+automatically from the temporal span. Here, the span is approximately 55
+days, so the unit and default measurement interval are days. Numeric
+times retain their supplied scale and are labelled
+<code>step</code>.</p>
+</div>
+<div id="threaded-data" class="section level3">
+<h3>Threaded data</h3>
+<p>Threaded data contain timestamps and discussion identifiers. A
+discussion-based duration represents the period during which a post
+remains part of an ongoing exchange, as subsequent interactions respond
+to or address that discussion. Following the approach of Saqr and Nouri
+(2020), Dynet treats a post as active from its timestamp until the last
+retained post in the same thread. For a post at time <span class="math inline">\(t_i\)</span> in thread <span class="math inline">\(T\)</span>, the relational spell is <span class="math inline">\([t_i, \max_{j \in T} t_j)\)</span>. A final post
+has zero duration. This is a modelling assumption about discussion
+activity, rather than a directly observed contact duration.</p>
+<p>Specifying <code>thread</code> selects this construction. The
+optional <code>nodes</code> argument supplies vertex attributes.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>forum <span class="ot">&lt;-</span> <span class="fu">dynet</span>(forum_posts, <span class="at">thread =</span> <span class="st">&quot;thread&quot;</span>, <span class="at">nodes =</span> forum_people)</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>forum</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co">#&gt; # Temporal network (threaded format, directed) | a cograph netobject</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="co">#&gt; # 20 vertices | 241 edge spells | 172 distinct pairs</span></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="co">#&gt; # observed from 0 to 54.96387 days, binned every 1</span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a><span class="co">#&gt; # vertex attributes: role, achievement</span></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="co">#&gt;        from         to     start      end duration weight    thread</span></span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a><span class="co">#&gt;  student_14 student_05 0.0000000 2.296969 2.296969      1 thread_47</span></span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a><span class="co">#&gt;  student_10 student_05 0.7257216 2.296969 1.571247      1 thread_47</span></span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a><span class="co">#&gt;   teacher_A student_09 0.8559934 3.235993 2.380000      1 thread_11</span></span>
+<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a><span class="co">#&gt;  student_04 student_05 1.1715344 2.296969 1.125435      1 thread_47</span></span>
+<span id="cb6-13"><a href="#cb6-13" tabindex="-1"></a><span class="co">#&gt;  student_02 student_09 1.2382611 3.235993 1.997732      1 thread_11</span></span>
+<span id="cb6-14"><a href="#cb6-14" tabindex="-1"></a><span class="co">#&gt;  student_06  teacher_A 1.9797595 3.235993 1.256234      1 thread_11</span></span>
+<span id="cb6-15"><a href="#cb6-15" tabindex="-1"></a><span class="co">#&gt; # 235 more spells. summary() describes the network; plot() draws it.</span></span></code></pre></div>
+<p>The network retains the same 241 spells, twenty vertices, and 172
+ordered pairs as the contact representation. Each spell now carries its
+thread identifier and a derived termination time. The 62 thread-closing
+posts have zero duration; the remaining spells have positive
+duration.</p>
+<p><code>summary(..., temporal_density = TRUE)</code> compares the two
+representations using both mean snapshot density and temporal density.
+Temporal density is optional because its calculation integrates activity
+over eligible vertex pairs and can be more computationally
+demanding.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="fu">summary</span>(clicks, <span class="at">temporal_density =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="co">#&gt;                 property    value</span></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="co">#&gt; 1                 format  contact</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="co">#&gt; 2               directed      yes</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a><span class="co">#&gt; 3               vertices       20</span></span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="co">#&gt; 4            edge spells      241</span></span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a><span class="co">#&gt; 5         distinct pairs      172</span></span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a><span class="co">#&gt; 6              time unit     days</span></span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a><span class="co">#&gt; 7          observed from        0</span></span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a><span class="co">#&gt; 8            observed to 54.96387</span></span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a><span class="co">#&gt; 9                   span 54.96387</span></span>
+<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a><span class="co">#&gt; 10             bin width        1</span></span>
+<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a><span class="co">#&gt; 11             time bins       55</span></span>
+<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a><span class="co">#&gt; 12 mean snapshot density   0.0112</span></span>
+<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a><span class="co">#&gt; 13      temporal density        0</span></span>
+<span id="cb7-16"><a href="#cb7-16" tabindex="-1"></a><span class="co">#&gt; 14              sessions     none</span></span>
+<span id="cb7-17"><a href="#cb7-17" tabindex="-1"></a><span class="co">#&gt; 15     vertex attributes     none</span></span></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="fu">summary</span>(forum, <span class="at">temporal_density =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a><span class="co">#&gt;                 property             value</span></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="co">#&gt; 1                 format          threaded</span></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="co">#&gt; 2               directed               yes</span></span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a><span class="co">#&gt; 3               vertices                20</span></span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a><span class="co">#&gt; 4            edge spells               241</span></span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a><span class="co">#&gt; 5         distinct pairs               172</span></span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a><span class="co">#&gt; 6              time unit              days</span></span>
+<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a><span class="co">#&gt; 7          observed from                 0</span></span>
+<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a><span class="co">#&gt; 8            observed to          54.96387</span></span>
+<span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a><span class="co">#&gt; 9                   span          54.96387</span></span>
+<span id="cb8-12"><a href="#cb8-12" tabindex="-1"></a><span class="co">#&gt; 10             bin width                 1</span></span>
+<span id="cb8-13"><a href="#cb8-13" tabindex="-1"></a><span class="co">#&gt; 11             time bins                55</span></span>
+<span id="cb8-14"><a href="#cb8-14" tabindex="-1"></a><span class="co">#&gt; 12 mean snapshot density            0.0248</span></span>
+<span id="cb8-15"><a href="#cb8-15" tabindex="-1"></a><span class="co">#&gt; 13      temporal density            0.0139</span></span>
+<span id="cb8-16"><a href="#cb8-16" tabindex="-1"></a><span class="co">#&gt; 14              sessions              none</span></span>
+<span id="cb8-17"><a href="#cb8-17" tabindex="-1"></a><span class="co">#&gt; 15     vertex attributes role, achievement</span></span></code></pre></div>
+<p><strong>Mean snapshot density</strong> averages the proportion of
+ordered pairs connected at some point within each measurement bin.
+<strong>Temporal density</strong> measures the proportion of available
+pair-time occupied by connections. For a fixed population of <span class="math inline">\(n\)</span> vertices observed continuously for
+duration <span class="math inline">\(\tau\)</span>, with self-links
+excluded,</p>
+<p><span class="math display">\[D_T = \frac{\sum_r U_r}{n(n -
+1)\,\tau},\]</span></p>
+<p>where <span class="math inline">\(U_r\)</span> is the total duration
+for which ordered pair <span class="math inline">\(r\)</span> has at
+least one active spell. Overlapping spells on the same pair contribute
+their union duration.</p>
+<p>The contact representation has mean snapshot density 0.0112 and
+temporal density 0: instantaneous contacts count within bins but occupy
+no positive duration. The threaded representation has mean snapshot
+density 0.0248 and temporal density 0.0139. Its connections occupy 290.8
+pair-days across 380 possible pairs and 54.96 observed days. These
+differences follow from the specified duration rule, which is applied
+when the threaded format is selected.</p>
+</div>
+<div id="co-presence-data" class="section level3">
+<h3>Co-presence data</h3>
+<p>Co-presence data record actors’ participation in shared occasions
+rather than direct relationships between actors. A projection connects
+actors who attend the same occasion. <code>seminar_attendance</code>
+records attendance at weekly seminars over one term.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">head</span>(seminar_attendance, <span class="dv">3</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="co">#&gt;   student seminar       date</span></span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="co">#&gt; 1     s12 week_01 2024-09-03</span></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="co">#&gt; 2     s22 week_01 2024-09-03</span></span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a><span class="co">#&gt; 3     s23 week_01 2024-09-03</span></span></code></pre></div>
+<p>Specify <code>actor</code> and <code>group</code> to identify the
+participant and occasion columns.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a>seminars <span class="ot">&lt;-</span> <span class="fu">dynet</span>(seminar_attendance, <span class="at">actor =</span> <span class="st">&quot;student&quot;</span>, <span class="at">group =</span> <span class="st">&quot;seminar&quot;</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>seminars</span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="co">#&gt; # Temporal network (copresence format, undirected) | a cograph netobject</span></span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="co">#&gt; # 24 vertices | 417 edge spells | 224 distinct pairs</span></span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a><span class="co">#&gt; # observed from 0 to 77 days, binned every 1</span></span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a><span class="co">#&gt;  from  to start end duration weight   group</span></span>
+<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a><span class="co">#&gt;   s03 s10     0   0        0      1 week_01</span></span>
+<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a><span class="co">#&gt;   s03 s12     0   0        0      1 week_01</span></span>
+<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a><span class="co">#&gt;   s03 s21     0   0        0      1 week_01</span></span>
+<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a><span class="co">#&gt;   s03 s22     0   0        0      1 week_01</span></span>
+<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a><span class="co">#&gt;   s03 s23     0   0        0      1 week_01</span></span>
+<span id="cb10-13"><a href="#cb10-13" tabindex="-1"></a><span class="co">#&gt;   s10 s12     0   0        0      1 week_01</span></span>
+<span id="cb10-14"><a href="#cb10-14" tabindex="-1"></a><span class="co">#&gt; # 411 more spells. summary() describes the network; plot() draws it.</span></span></code></pre></div>
+<p>Each seminar contributes a spell for every pair of attendees, tagged
+with that seminar’s identifier. A seminar with <span class="math inline">\(k\)</span> attendees therefore contributes <span class="math inline">\(\binom{k}{2}\)</span> spells. Across all seminars,
+the resulting network contains 417 spells and 224 distinct pairs among
+24 students. These pairs represent approximately 81% of the <span class="math inline">\(\binom{24}{2} = 276\)</span> possible unordered
+pairs.</p>
+<p>Co-presence is symmetric, so the constructor creates an undirected
+network even if <code>directed = TRUE</code> is supplied. Here, the
+input supplies a date without a termination time, so the projected
+spells are instantaneous contacts on the seminar date.</p>
+</div>
+<div id="choosing-the-format" class="section level3">
+<h3>Choosing the format</h3>
+<p>With the default <code>format = &quot;auto&quot;</code>, specifying both
+<code>actor</code> and <code>group</code> selects co-presence;
+otherwise, specifying <code>thread</code> selects threaded data. If
+neither condition applies, an explicitly specified or automatically
+recognised termination or duration column selects interval data.
+Otherwise, the constructor selects contact data.</p>
+<p>A thread column is not sufficient by itself to select threaded
+construction. Consequently, the following call interprets
+<code>forum_posts</code> as a contact sequence:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>auto <span class="ot">&lt;-</span> <span class="fu">dynet</span>(forum_posts)</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>auto</span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a><span class="co">#&gt; # Temporal network (contact format, directed) | a cograph netobject</span></span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a><span class="co">#&gt; # 20 vertices | 241 edge spells | 172 distinct pairs</span></span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a><span class="co">#&gt; # observed from 0 to 54.96387 days, binned every 1</span></span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a><span class="co">#&gt;        from         to     start       end duration weight</span></span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a><span class="co">#&gt;  student_14 student_05 0.0000000 0.0000000        0      1</span></span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a><span class="co">#&gt;  student_10 student_05 0.7257216 0.7257216        0      1</span></span>
+<span id="cb11-10"><a href="#cb11-10" tabindex="-1"></a><span class="co">#&gt;   teacher_A student_09 0.8559934 0.8559934        0      1</span></span>
+<span id="cb11-11"><a href="#cb11-11" tabindex="-1"></a><span class="co">#&gt;  student_04 student_05 1.1715344 1.1715344        0      1</span></span>
+<span id="cb11-12"><a href="#cb11-12" tabindex="-1"></a><span class="co">#&gt;  student_02 student_09 1.2382611 1.2382611        0      1</span></span>
+<span id="cb11-13"><a href="#cb11-13" tabindex="-1"></a><span class="co">#&gt;  student_06  teacher_A 1.9797595 1.9797595        0      1</span></span>
+<span id="cb11-14"><a href="#cb11-14" tabindex="-1"></a><span class="co">#&gt; # 235 more spells. summary() describes the network; plot() draws it.</span></span></code></pre></div>
+<p>Set <code>format</code> to <code>&quot;interval&quot;</code>,
+<code>&quot;contact&quot;</code>, <code>&quot;threaded&quot;</code>, or
+<code>&quot;copresence&quot;</code> to select the representation explicitly. The
+required variables must still be available through recognised aliases or
+explicit column arguments.</p>
+</div>
+</div>
+<div id="inspecting-the-network" class="section level2">
+<h2>Inspecting the network</h2>
+<p><code>summary()</code> returns network properties in a tidy
+table.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="fu">summary</span>(school)</span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a><span class="co">#&gt;                 property        value</span></span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a><span class="co">#&gt; 1                 format     interval</span></span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a><span class="co">#&gt; 2               directed          yes</span></span>
+<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a><span class="co">#&gt; 3               vertices           14</span></span>
+<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a><span class="co">#&gt; 4            edge spells          240</span></span>
+<span id="cb12-7"><a href="#cb12-7" tabindex="-1"></a><span class="co">#&gt; 5         distinct pairs          110</span></span>
+<span id="cb12-8"><a href="#cb12-8" tabindex="-1"></a><span class="co">#&gt; 6              time unit         step</span></span>
+<span id="cb12-9"><a href="#cb12-9" tabindex="-1"></a><span class="co">#&gt; 7          observed from            0</span></span>
+<span id="cb12-10"><a href="#cb12-10" tabindex="-1"></a><span class="co">#&gt; 8            observed to        21.52</span></span>
+<span id="cb12-11"><a href="#cb12-11" tabindex="-1"></a><span class="co">#&gt; 9                   span        21.52</span></span>
+<span id="cb12-12"><a href="#cb12-12" tabindex="-1"></a><span class="co">#&gt; 10             bin width            1</span></span>
+<span id="cb12-13"><a href="#cb12-13" tabindex="-1"></a><span class="co">#&gt; 11             time bins           22</span></span>
+<span id="cb12-14"><a href="#cb12-14" tabindex="-1"></a><span class="co">#&gt; 12 mean snapshot density       0.0829</span></span>
+<span id="cb12-15"><a href="#cb12-15" tabindex="-1"></a><span class="co">#&gt; 13      temporal density not computed</span></span>
+<span id="cb12-16"><a href="#cb12-16" tabindex="-1"></a><span class="co">#&gt; 14              sessions         none</span></span>
+<span id="cb12-17"><a href="#cb12-17" tabindex="-1"></a><span class="co">#&gt; 15     vertex attributes         none</span></span></code></pre></div>
+<p><code>vertices</code> reports the size of the vertex set,
+<code>edge spells</code> counts relational spells, and
+<code>distinct pairs</code> counts the endpoint pairs they connect. The
+classroom network has 240 spells on 110 ordered pairs, indicating
+repeated contact for at least some pairs.</p>
+<p><code>time unit</code> is <code>step</code> for numeric input or the
+selected calendar unit for date-time input. Without explicit observation
+bounds, the observed range extends from the earliest onset to the latest
+termination. <code>bin width</code> records the construction interval,
+and <code>time bins</code> counts the intervals covering that range.
+Here, 22 bins cover 21.52 days; the final bin is shorter than one
+day.</p>
+<p><code>mean snapshot density</code> is 0.0829: approximately 8.3% of
+possible ordered pairs are connected in an average daily bin, compared
+with about 60% across the full observation period.
+<code>temporal density</code> is calculated only when requested.</p>
+<p><code>as.data.frame()</code> extracts the constructed relational
+spells, including <code>duration</code> and <code>weight</code>.</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a>spells <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(school)</span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="fu">head</span>(spells, <span class="dv">4</span>)</span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a><span class="co">#&gt;    from   to start  end duration weight</span></span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a><span class="co">#&gt; 1 Jonas  Dan  0.00 1.10     1.10      1</span></span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a><span class="co">#&gt; 2  Gita  Ana  0.14 0.98     0.84      1</span></span>
+<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a><span class="co">#&gt; 3   Leo Mira  0.15 0.42     0.27      1</span></span>
+<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a><span class="co">#&gt; 4   Leo Iris  0.15 0.96     0.81      1</span></span></code></pre></div>
+<p>Use <code>what = &quot;nodes&quot;</code> to extract vertex attributes. For
+<code>forum</code>, these include the attributes supplied through
+<code>nodes</code>.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a>forum_nodes <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(forum, <span class="at">what =</span> <span class="st">&quot;nodes&quot;</span>)</span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a><span class="fu">head</span>(forum_nodes, <span class="dv">4</span>)</span>
+<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a><span class="co">#&gt;          name        role achievement</span></span>
+<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a><span class="co">#&gt; 1 facilitator Facilitator        &lt;NA&gt;</span></span>
+<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a><span class="co">#&gt; 2  student_01     Student      Middle</span></span>
+<span id="cb14-6"><a href="#cb14-6" tabindex="-1"></a><span class="co">#&gt; 3  student_02     Student         Low</span></span>
+<span id="cb14-7"><a href="#cb14-7" tabindex="-1"></a><span class="co">#&gt; 4  student_03     Student        High</span></span></code></pre></div>
+<p>Other options are <code>&quot;bins&quot;</code> for the measurement grid,
+<code>&quot;network&quot;</code> for the aggregate edge list,
+<code>&quot;observations&quot;</code> for the observation calendar,
+<code>&quot;observed_edges&quot;</code> for spells clipped to that calendar, and
+<code>&quot;vertex_spells&quot;</code> for declared vertex activity.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a>bins <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(school, <span class="at">what =</span> <span class="st">&quot;bins&quot;</span>)</span>
+<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a><span class="fu">head</span>(bins, <span class="dv">4</span>)</span>
+<span id="cb15-3"><a href="#cb15-3" tabindex="-1"></a><span class="co">#&gt;   bin lo hi time closed</span></span>
+<span id="cb15-4"><a href="#cb15-4" tabindex="-1"></a><span class="co">#&gt; 1   1  0  1    0  FALSE</span></span>
+<span id="cb15-5"><a href="#cb15-5" tabindex="-1"></a><span class="co">#&gt; 2   2  1  2    1  FALSE</span></span>
+<span id="cb15-6"><a href="#cb15-6" tabindex="-1"></a><span class="co">#&gt; 3   3  2  3    2  FALSE</span></span>
+<span id="cb15-7"><a href="#cb15-7" tabindex="-1"></a><span class="co">#&gt; 4   4  3  4    3  FALSE</span></span></code></pre></div>
+<p>Each bin extends from <code>lo</code> to <code>hi</code> and is
+labelled by its starting <code>time</code>. Bins are half-open except
+for the final bin, whose <code>closed</code> flag includes an event at
+the final observed instant.</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a>pairs <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(school, <span class="at">what =</span> <span class="st">&quot;network&quot;</span>)</span>
+<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a><span class="fu">head</span>(pairs, <span class="dv">4</span>)</span>
+<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a><span class="co">#&gt;   from  to weight</span></span>
+<span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a><span class="co">#&gt; 1 Cara Ana      1</span></span>
+<span id="cb16-5"><a href="#cb16-5" tabindex="-1"></a><span class="co">#&gt; 2  Dan Ana      2</span></span>
+<span id="cb16-6"><a href="#cb16-6" tabindex="-1"></a><span class="co">#&gt; 3 Gita Ana      3</span></span>
+<span id="cb16-7"><a href="#cb16-7" tabindex="-1"></a><span class="co">#&gt; 4 Hugo Ana      2</span></span></code></pre></div>
+<p>The aggregate edge list groups spells by their relational endpoints
+and sums their weights. Because every spell in <code>school</code> has
+weight 1, the aggregate <code>weight</code> equals the spell count: Dan
+contacted Ana twice and Gita contacted Ana three times. Aggregation
+summarises these relationships without retaining their temporal
+order.</p>
+</div>
+<div id="direction-loops-weights-and-attributes" class="section level2">
+<h2>Direction, loops, weights and attributes</h2>
+<p>The following dataset contains five spells among three vertices,
+including a self-link from <code>A</code> to <code>A</code>. The
+supplied <code>posts</code> variable records the number of messages
+represented by each spell.</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a>tiny <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a>  <span class="at">from  =</span> <span class="fu">c</span>(<span class="st">&quot;A&quot;</span>, <span class="st">&quot;B&quot;</span>, <span class="st">&quot;A&quot;</span>, <span class="st">&quot;C&quot;</span>, <span class="st">&quot;A&quot;</span>),</span>
+<span id="cb17-3"><a href="#cb17-3" tabindex="-1"></a>  <span class="at">to    =</span> <span class="fu">c</span>(<span class="st">&quot;B&quot;</span>, <span class="st">&quot;A&quot;</span>, <span class="st">&quot;C&quot;</span>, <span class="st">&quot;A&quot;</span>, <span class="st">&quot;A&quot;</span>),</span>
+<span id="cb17-4"><a href="#cb17-4" tabindex="-1"></a>  <span class="at">start =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">4</span>),</span>
+<span id="cb17-5"><a href="#cb17-5" tabindex="-1"></a>  <span class="at">end   =</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">5</span>, <span class="dv">4</span>, <span class="dv">6</span>),</span>
+<span id="cb17-6"><a href="#cb17-6" tabindex="-1"></a>  <span class="at">posts =</span> <span class="fu">c</span>(<span class="dv">3</span>, <span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">5</span>, <span class="dv">1</span>)</span>
+<span id="cb17-7"><a href="#cb17-7" tabindex="-1"></a>)</span></code></pre></div>
+<p>Set <code>directed = FALSE</code> to construct an undirected network
+and use <code>weight</code> to identify the multiplicity variable.
+Columns named <code>weight</code>, <code>weights</code>, or
+<code>strength</code> are recognised automatically; <code>posts</code>
+requires explicit specification.</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a>undirected <span class="ot">&lt;-</span> <span class="fu">dynet</span>(tiny, <span class="at">directed =</span> <span class="cn">FALSE</span>, <span class="at">weight =</span> <span class="st">&quot;posts&quot;</span>)</span>
+<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a><span class="co">#&gt; Dropped 1 self-loop event(s). Use loops = TRUE to keep them.</span></span>
+<span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a>undirected</span>
+<span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a><span class="co">#&gt; # Temporal network (interval format, undirected) | a cograph netobject</span></span>
+<span id="cb18-5"><a href="#cb18-5" tabindex="-1"></a><span class="co">#&gt; # 3 vertices | 4 edge spells | 2 distinct pairs</span></span>
+<span id="cb18-6"><a href="#cb18-6" tabindex="-1"></a><span class="co">#&gt; # observed from 0 to 5 step, binned every 1</span></span>
+<span id="cb18-7"><a href="#cb18-7" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb18-8"><a href="#cb18-8" tabindex="-1"></a><span class="co">#&gt;  from to start end duration weight</span></span>
+<span id="cb18-9"><a href="#cb18-9" tabindex="-1"></a><span class="co">#&gt;     A  B     0   2        2      3</span></span>
+<span id="cb18-10"><a href="#cb18-10" tabindex="-1"></a><span class="co">#&gt;     A  B     1   3        2      1</span></span>
+<span id="cb18-11"><a href="#cb18-11" tabindex="-1"></a><span class="co">#&gt;     A  C     2   5        3      2</span></span>
+<span id="cb18-12"><a href="#cb18-12" tabindex="-1"></a><span class="co">#&gt;     A  C     3   4        1      5</span></span></code></pre></div>
+<p>The result contains four spells on two unordered pairs. The spells
+<code>A -&gt; B</code> and <code>B -&gt; A</code> connect the same
+undirected pair but retain their individual onset and termination times;
+they overlap during <span class="math inline">\([1, 2)\)</span>. The
+constructor removes the self-link because <code>loops = FALSE</code> by
+default and records the supplied <code>posts</code> values as
+<code>weight</code>.</p>
+<p>Set <code>loops = TRUE</code> to retain self-links. Under total
+degree, a retained loop contributes twice, once at each endpoint.</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a>with_loops <span class="ot">&lt;-</span> <span class="fu">dynet</span>(tiny, <span class="at">loops =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb19-2"><a href="#cb19-2" tabindex="-1"></a><span class="co">#&gt; Keeping 1 self-loop event(s); each adds two to its vertex&#39;s degree.</span></span>
+<span id="cb19-3"><a href="#cb19-3" tabindex="-1"></a>with_loops</span>
+<span id="cb19-4"><a href="#cb19-4" tabindex="-1"></a><span class="co">#&gt; # Temporal network (interval format, directed) | a cograph netobject</span></span>
+<span id="cb19-5"><a href="#cb19-5" tabindex="-1"></a><span class="co">#&gt; # 3 vertices | 5 edge spells | 5 distinct pairs</span></span>
+<span id="cb19-6"><a href="#cb19-6" tabindex="-1"></a><span class="co">#&gt; # observed from 0 to 6 step, binned every 1</span></span>
+<span id="cb19-7"><a href="#cb19-7" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb19-8"><a href="#cb19-8" tabindex="-1"></a><span class="co">#&gt;  from to start end duration weight posts</span></span>
+<span id="cb19-9"><a href="#cb19-9" tabindex="-1"></a><span class="co">#&gt;     A  B     0   2        2      1     3</span></span>
+<span id="cb19-10"><a href="#cb19-10" tabindex="-1"></a><span class="co">#&gt;     B  A     1   3        2      1     1</span></span>
+<span id="cb19-11"><a href="#cb19-11" tabindex="-1"></a><span class="co">#&gt;     A  C     2   5        3      1     2</span></span>
+<span id="cb19-12"><a href="#cb19-12" tabindex="-1"></a><span class="co">#&gt;     C  A     3   4        1      1     5</span></span>
+<span id="cb19-13"><a href="#cb19-13" tabindex="-1"></a><span class="co">#&gt;     A  A     4   6        2      1     1</span></span></code></pre></div>
+<p>This call retains direction and all five spells, producing five
+distinct ordered pairs. Because <code>weight</code> is not specified and
+<code>posts</code> is not a recognised weight alias, <code>posts</code>
+remains a spell attribute and the constructor assigns the default weight
+of 1.</p>
+<p><code>interval</code> sets the default spacing of measurements in the
+network’s time unit.</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" tabindex="-1"></a>tiny_dn <span class="ot">&lt;-</span> <span class="fu">dynet</span>(tiny, <span class="at">interval =</span> <span class="dv">2</span>)</span>
+<span id="cb20-2"><a href="#cb20-2" tabindex="-1"></a><span class="co">#&gt; Dropped 1 self-loop event(s). Use loops = TRUE to keep them.</span></span>
+<span id="cb20-3"><a href="#cb20-3" tabindex="-1"></a><span class="fu">summary</span>(tiny_dn)</span>
+<span id="cb20-4"><a href="#cb20-4" tabindex="-1"></a><span class="co">#&gt;                 property        value</span></span>
+<span id="cb20-5"><a href="#cb20-5" tabindex="-1"></a><span class="co">#&gt; 1                 format     interval</span></span>
+<span id="cb20-6"><a href="#cb20-6" tabindex="-1"></a><span class="co">#&gt; 2               directed          yes</span></span>
+<span id="cb20-7"><a href="#cb20-7" tabindex="-1"></a><span class="co">#&gt; 3               vertices            3</span></span>
+<span id="cb20-8"><a href="#cb20-8" tabindex="-1"></a><span class="co">#&gt; 4            edge spells            4</span></span>
+<span id="cb20-9"><a href="#cb20-9" tabindex="-1"></a><span class="co">#&gt; 5         distinct pairs            4</span></span>
+<span id="cb20-10"><a href="#cb20-10" tabindex="-1"></a><span class="co">#&gt; 6              time unit         step</span></span>
+<span id="cb20-11"><a href="#cb20-11" tabindex="-1"></a><span class="co">#&gt; 7          observed from            0</span></span>
+<span id="cb20-12"><a href="#cb20-12" tabindex="-1"></a><span class="co">#&gt; 8            observed to            5</span></span>
+<span id="cb20-13"><a href="#cb20-13" tabindex="-1"></a><span class="co">#&gt; 9                   span            5</span></span>
+<span id="cb20-14"><a href="#cb20-14" tabindex="-1"></a><span class="co">#&gt; 10             bin width            2</span></span>
+<span id="cb20-15"><a href="#cb20-15" tabindex="-1"></a><span class="co">#&gt; 11             time bins            3</span></span>
+<span id="cb20-16"><a href="#cb20-16" tabindex="-1"></a><span class="co">#&gt; 12 mean snapshot density       0.3333</span></span>
+<span id="cb20-17"><a href="#cb20-17" tabindex="-1"></a><span class="co">#&gt; 13      temporal density not computed</span></span>
+<span id="cb20-18"><a href="#cb20-18" tabindex="-1"></a><span class="co">#&gt; 14              sessions         none</span></span>
+<span id="cb20-19"><a href="#cb20-19" tabindex="-1"></a><span class="co">#&gt; 15     vertex attributes         none</span></span></code></pre></div>
+<p>An interval of 2 covers the five-unit observation period with three
+bins, the last of which is partial. Their active-pair counts are 2, 3,
+and 1 out of six possible ordered pairs. Mean snapshot density is
+therefore <span class="math inline">\((2/6 + 3/6 + 1/6)/3 =
+1/3\)</span>.</p>
+<p>The <code>nodes</code> argument supplies a vertex table whose
+identifier column is recognised by name. <code>groups</code> selects an
+attribute to store as the vertex grouping; <code>cograph::splot()</code>
+can then use it for vertex colours.</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" tabindex="-1"></a>roles <span class="ot">&lt;-</span> <span class="fu">dynet</span>(forum_posts, <span class="at">thread =</span> <span class="st">&quot;thread&quot;</span>,</span>
+<span id="cb21-2"><a href="#cb21-2" tabindex="-1"></a>               <span class="at">nodes =</span> forum_people, <span class="at">groups =</span> <span class="st">&quot;role&quot;</span>)</span>
+<span id="cb21-3"><a href="#cb21-3" tabindex="-1"></a>role_nodes <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(roles, <span class="at">what =</span> <span class="st">&quot;nodes&quot;</span>)</span>
+<span id="cb21-4"><a href="#cb21-4" tabindex="-1"></a><span class="fu">head</span>(role_nodes, <span class="dv">4</span>)</span>
+<span id="cb21-5"><a href="#cb21-5" tabindex="-1"></a><span class="co">#&gt;          name        role achievement      groups</span></span>
+<span id="cb21-6"><a href="#cb21-6" tabindex="-1"></a><span class="co">#&gt; 1 facilitator Facilitator        &lt;NA&gt; Facilitator</span></span>
+<span id="cb21-7"><a href="#cb21-7" tabindex="-1"></a><span class="co">#&gt; 2  student_01     Student      Middle     Student</span></span>
+<span id="cb21-8"><a href="#cb21-8" tabindex="-1"></a><span class="co">#&gt; 3  student_02     Student         Low     Student</span></span>
+<span id="cb21-9"><a href="#cb21-9" tabindex="-1"></a><span class="co">#&gt; 4  student_03     Student        High     Student</span></span></code></pre></div>
+<p><strong>Mixing</strong> describes connections within and between
+groups defined by a vertex attribute. <code>mixing()</code> counts
+distinct connected vertex pairs for each ordered group pair and
+measurement bin. Connections counted in a bin need not be active
+simultaneously.</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" tabindex="-1"></a>role_mixing <span class="ot">&lt;-</span> <span class="fu">mixing</span>(roles, <span class="at">attribute =</span> <span class="st">&quot;role&quot;</span>)</span>
+<span id="cb22-2"><a href="#cb22-2" tabindex="-1"></a><span class="fu">head</span>(role_mixing, <span class="dv">4</span>)</span>
+<span id="cb22-3"><a href="#cb22-3" tabindex="-1"></a><span class="co">#&gt; # Mixing by role (graph-level)</span></span>
+<span id="cb22-4"><a href="#cb22-4" tabindex="-1"></a><span class="co">#&gt; # 55 time points, 1 per bin | time in days</span></span>
+<span id="cb22-5"><a href="#cb22-5" tabindex="-1"></a><span class="co">#&gt; # measures: Facilitator -&gt; Facilitator, Student -&gt; Facilitator, Teacher -&gt; Facilitator, Facilitator -&gt; Student</span></span>
+<span id="cb22-6"><a href="#cb22-6" tabindex="-1"></a><span class="co">#&gt; # first 4 of 495 rows</span></span>
+<span id="cb22-7"><a href="#cb22-7" tabindex="-1"></a><span class="co">#&gt; # active binary-dyad counts between vertex groups per time bin</span></span>
+<span id="cb22-8"><a href="#cb22-8" tabindex="-1"></a><span class="co">#&gt;  time                    measure value  from_group    to_group</span></span>
+<span id="cb22-9"><a href="#cb22-9" tabindex="-1"></a><span class="co">#&gt;     0 Facilitator -&gt; Facilitator     0 Facilitator Facilitator</span></span>
+<span id="cb22-10"><a href="#cb22-10" tabindex="-1"></a><span class="co">#&gt;     0     Student -&gt; Facilitator     0     Student Facilitator</span></span>
+<span id="cb22-11"><a href="#cb22-11" tabindex="-1"></a><span class="co">#&gt;     0     Teacher -&gt; Facilitator     0     Teacher Facilitator</span></span>
+<span id="cb22-12"><a href="#cb22-12" tabindex="-1"></a><span class="co">#&gt;     0     Facilitator -&gt; Student     0 Facilitator     Student</span></span></code></pre></div>
+<p>Three roles produce nine ordered group pairs in each of 55 daily
+bins, giving 495 observations. In the first bin, no connection involves
+a facilitator. These are connection counts, not probabilities or counts
+of simultaneous interactions.</p>
+</div>
+<div id="sessions" class="section level2">
+<h2>Sessions</h2>
+<p>Sessions identify contexts within which time-respecting paths may be
+constrained, such as courses, terms, or class periods. By default, a
+path must use spells assigned to a single session. Session labels do not
+reset the clock.</p>
+<p>Use <code>session</code> during construction to identify an existing
+session column. Alternatively, <code>set_tie_sessions()</code> can
+assign sessions from spell onset times. The following call assigns
+spells to weeks using boundaries at days 7 and 14.</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" tabindex="-1"></a>sessioned <span class="ot">&lt;-</span> <span class="fu">set_tie_sessions</span>(school, <span class="at">breaks =</span> <span class="fu">c</span>(<span class="dv">7</span>, <span class="dv">14</span>),</span>
+<span id="cb23-2"><a href="#cb23-2" tabindex="-1"></a>                              <span class="at">labels =</span> <span class="fu">c</span>(<span class="st">&quot;week_1&quot;</span>, <span class="st">&quot;week_2&quot;</span>, <span class="st">&quot;week_3&quot;</span>))</span>
+<span id="cb23-3"><a href="#cb23-3" tabindex="-1"></a><span class="fu">summary</span>(sessioned)</span>
+<span id="cb23-4"><a href="#cb23-4" tabindex="-1"></a><span class="co">#&gt;                 property        value</span></span>
+<span id="cb23-5"><a href="#cb23-5" tabindex="-1"></a><span class="co">#&gt; 1                 format     interval</span></span>
+<span id="cb23-6"><a href="#cb23-6" tabindex="-1"></a><span class="co">#&gt; 2               directed          yes</span></span>
+<span id="cb23-7"><a href="#cb23-7" tabindex="-1"></a><span class="co">#&gt; 3               vertices           14</span></span>
+<span id="cb23-8"><a href="#cb23-8" tabindex="-1"></a><span class="co">#&gt; 4            edge spells          240</span></span>
+<span id="cb23-9"><a href="#cb23-9" tabindex="-1"></a><span class="co">#&gt; 5         distinct pairs          110</span></span>
+<span id="cb23-10"><a href="#cb23-10" tabindex="-1"></a><span class="co">#&gt; 6              time unit         step</span></span>
+<span id="cb23-11"><a href="#cb23-11" tabindex="-1"></a><span class="co">#&gt; 7          observed from            0</span></span>
+<span id="cb23-12"><a href="#cb23-12" tabindex="-1"></a><span class="co">#&gt; 8            observed to        21.52</span></span>
+<span id="cb23-13"><a href="#cb23-13" tabindex="-1"></a><span class="co">#&gt; 9                   span        21.52</span></span>
+<span id="cb23-14"><a href="#cb23-14" tabindex="-1"></a><span class="co">#&gt; 10             bin width            1</span></span>
+<span id="cb23-15"><a href="#cb23-15" tabindex="-1"></a><span class="co">#&gt; 11             time bins           22</span></span>
+<span id="cb23-16"><a href="#cb23-16" tabindex="-1"></a><span class="co">#&gt; 12 mean snapshot density       0.0829</span></span>
+<span id="cb23-17"><a href="#cb23-17" tabindex="-1"></a><span class="co">#&gt; 13      temporal density not computed</span></span>
+<span id="cb23-18"><a href="#cb23-18" tabindex="-1"></a><span class="co">#&gt; 14              sessions            3</span></span>
+<span id="cb23-19"><a href="#cb23-19" tabindex="-1"></a><span class="co">#&gt; 15     vertex attributes         none</span></span></code></pre></div>
+<p>The summary now reports three sessions. The <code>sessions</code>
+argument controls how path searches use these assignments.</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" tabindex="-1"></a>collapsed <span class="ot">&lt;-</span> <span class="fu">paths</span>(sessioned, <span class="at">from =</span> <span class="st">&quot;Ana&quot;</span>, <span class="at">sessions =</span> <span class="st">&quot;collapse&quot;</span>)</span>
+<span id="cb24-2"><a href="#cb24-2" tabindex="-1"></a><span class="fu">summary</span>(collapsed)</span>
+<span id="cb24-3"><a href="#cb24-3" tabindex="-1"></a><span class="co">#&gt;          property   value</span></span>
+<span id="cb24-4"><a href="#cb24-4" tabindex="-1"></a><span class="co">#&gt; 1          source     Ana</span></span>
+<span id="cb24-5"><a href="#cb24-5" tabindex="-1"></a><span class="co">#&gt; 2       direction forward</span></span>
+<span id="cb24-6"><a href="#cb24-6" tabindex="-1"></a><span class="co">#&gt; 3       reachable      13</span></span>
+<span id="cb24-7"><a href="#cb24-7" tabindex="-1"></a><span class="co">#&gt; 4 reachable share       1</span></span>
+<span id="cb24-8"><a href="#cb24-8" tabindex="-1"></a><span class="co">#&gt; 5  median latency    7.51</span></span>
+<span id="cb24-9"><a href="#cb24-9" tabindex="-1"></a><span class="co">#&gt; 6     max latency   11.66</span></span>
+<span id="cb24-10"><a href="#cb24-10" tabindex="-1"></a><span class="co">#&gt; 7     median hops       2</span></span>
+<span id="cb24-11"><a href="#cb24-11" tabindex="-1"></a><span class="co">#&gt; 8        max hops       4</span></span></code></pre></div>
+<p>With <code>sessions = &quot;collapse&quot;</code>, session labels are ignored
+and the search uses the complete temporal sequence. Ana reaches all
+thirteen other students, with median latency 7.51 days and a maximum of
+four hops.</p>
+<div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" tabindex="-1"></a>inside <span class="ot">&lt;-</span> <span class="fu">paths</span>(sessioned, <span class="at">from =</span> <span class="st">&quot;Ana&quot;</span>, <span class="at">sessions =</span> <span class="st">&quot;bounded&quot;</span>)</span>
+<span id="cb25-2"><a href="#cb25-2" tabindex="-1"></a><span class="fu">summary</span>(inside)</span>
+<span id="cb25-3"><a href="#cb25-3" tabindex="-1"></a><span class="co">#&gt;          property   value</span></span>
+<span id="cb25-4"><a href="#cb25-4" tabindex="-1"></a><span class="co">#&gt; 1          source     Ana</span></span>
+<span id="cb25-5"><a href="#cb25-5" tabindex="-1"></a><span class="co">#&gt; 2       direction forward</span></span>
+<span id="cb25-6"><a href="#cb25-6" tabindex="-1"></a><span class="co">#&gt; 3       reachable      13</span></span>
+<span id="cb25-7"><a href="#cb25-7" tabindex="-1"></a><span class="co">#&gt; 4 reachable share       1</span></span>
+<span id="cb25-8"><a href="#cb25-8" tabindex="-1"></a><span class="co">#&gt; 5  median latency    8.21</span></span>
+<span id="cb25-9"><a href="#cb25-9" tabindex="-1"></a><span class="co">#&gt; 6     max latency   13.21</span></span>
+<span id="cb25-10"><a href="#cb25-10" tabindex="-1"></a><span class="co">#&gt; 7     median hops       2</span></span>
+<span id="cb25-11"><a href="#cb25-11" tabindex="-1"></a><span class="co">#&gt; 8        max hops       5</span></span></code></pre></div>
+<p>With <code>sessions = &quot;bounded&quot;</code>, each path uses spells from a
+single session. The search compares session-specific results and retains
+the best result for each destination. Ana still reaches all thirteen
+students, but median latency increases to 8.21 days, maximum latency to
+13.21 days, and maximum hop count to five. Earlier paths that combined
+spells assigned to different weeks are no longer admissible.</p>
+<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" tabindex="-1"></a>per_session <span class="ot">&lt;-</span> <span class="fu">paths</span>(sessioned, <span class="at">from =</span> <span class="st">&quot;Ana&quot;</span>, <span class="at">sessions =</span> <span class="st">&quot;separate&quot;</span>)</span>
+<span id="cb26-2"><a href="#cb26-2" tabindex="-1"></a><span class="fu">summary</span>(per_session)</span>
+<span id="cb26-3"><a href="#cb26-3" tabindex="-1"></a><span class="co">#&gt;    session        property   value</span></span>
+<span id="cb26-4"><a href="#cb26-4" tabindex="-1"></a><span class="co">#&gt; 1   week_1          source     Ana</span></span>
+<span id="cb26-5"><a href="#cb26-5" tabindex="-1"></a><span class="co">#&gt; 2   week_1       direction forward</span></span>
+<span id="cb26-6"><a href="#cb26-6" tabindex="-1"></a><span class="co">#&gt; 3   week_1       reachable       6</span></span>
+<span id="cb26-7"><a href="#cb26-7" tabindex="-1"></a><span class="co">#&gt; 4   week_1 reachable share   0.462</span></span>
+<span id="cb26-8"><a href="#cb26-8" tabindex="-1"></a><span class="co">#&gt; 5   week_1  median latency    6.36</span></span>
+<span id="cb26-9"><a href="#cb26-9" tabindex="-1"></a><span class="co">#&gt; 6   week_1     max latency    6.96</span></span>
+<span id="cb26-10"><a href="#cb26-10" tabindex="-1"></a><span class="co">#&gt; 7   week_1     median hops     1.5</span></span>
+<span id="cb26-11"><a href="#cb26-11" tabindex="-1"></a><span class="co">#&gt; 8   week_1        max hops       2</span></span>
+<span id="cb26-12"><a href="#cb26-12" tabindex="-1"></a><span class="co">#&gt; 9   week_2          source     Ana</span></span>
+<span id="cb26-13"><a href="#cb26-13" tabindex="-1"></a><span class="co">#&gt; 10  week_2       direction forward</span></span>
+<span id="cb26-14"><a href="#cb26-14" tabindex="-1"></a><span class="co">#&gt; 11  week_2       reachable      13</span></span>
+<span id="cb26-15"><a href="#cb26-15" tabindex="-1"></a><span class="co">#&gt; 12  week_2 reachable share       1</span></span>
+<span id="cb26-16"><a href="#cb26-16" tabindex="-1"></a><span class="co">#&gt; 13  week_2  median latency    3.36</span></span>
+<span id="cb26-17"><a href="#cb26-17" tabindex="-1"></a><span class="co">#&gt; 14  week_2     max latency    6.19</span></span>
+<span id="cb26-18"><a href="#cb26-18" tabindex="-1"></a><span class="co">#&gt; 15  week_2     median hops       3</span></span>
+<span id="cb26-19"><a href="#cb26-19" tabindex="-1"></a><span class="co">#&gt; 16  week_2        max hops       6</span></span>
+<span id="cb26-20"><a href="#cb26-20" tabindex="-1"></a><span class="co">#&gt; 17  week_3          source     Ana</span></span>
+<span id="cb26-21"><a href="#cb26-21" tabindex="-1"></a><span class="co">#&gt; 18  week_3       direction forward</span></span>
+<span id="cb26-22"><a href="#cb26-22" tabindex="-1"></a><span class="co">#&gt; 19  week_3       reachable       5</span></span>
+<span id="cb26-23"><a href="#cb26-23" tabindex="-1"></a><span class="co">#&gt; 20  week_3 reachable share   0.385</span></span>
+<span id="cb26-24"><a href="#cb26-24" tabindex="-1"></a><span class="co">#&gt; 21  week_3  median latency    6.42</span></span>
+<span id="cb26-25"><a href="#cb26-25" tabindex="-1"></a><span class="co">#&gt; 22  week_3     max latency    6.67</span></span>
+<span id="cb26-26"><a href="#cb26-26" tabindex="-1"></a><span class="co">#&gt; 23  week_3     median hops       2</span></span>
+<span id="cb26-27"><a href="#cb26-27" tabindex="-1"></a><span class="co">#&gt; 24  week_3        max hops       3</span></span></code></pre></div>
+<p>With <code>sessions = &quot;separate&quot;</code>, results are reported
+separately for each session. Ana reaches six students in week 1,
+thirteen in week 2, and five in week 3, corresponding to proportions of
+0.462, 1, and 0.385. The longest path within week 2 uses six hops.</p>
+<p><code>&quot;bounded&quot;</code> is the default. Without session assignments,
+it gives the same result as <code>&quot;collapse&quot;</code>.
+<code>&quot;separate&quot;</code> requires session assignments and otherwise
+raises <code>dynet_bad_input</code>.</p>
+</div>
+<div id="observation-windows" class="section level2">
+<h2>Observation windows</h2>
+<p>Without explicit bounds, the observation period extends from the
+earliest spell onset to the latest termination. These event-derived
+limits may differ from the study’s actual observation period. Specifying
+<code>observation_start</code> and <code>observation_end</code> defines
+the measurement horizon, including periods when no interaction was
+recorded.</p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" tabindex="-1"></a>bounded <span class="ot">&lt;-</span> <span class="fu">dynet</span>(school_contacts, <span class="at">observation_start =</span> <span class="dv">0</span>, <span class="at">observation_end =</span> <span class="dv">14</span>)</span>
+<span id="cb27-2"><a href="#cb27-2" tabindex="-1"></a><span class="fu">summary</span>(bounded)</span>
+<span id="cb27-3"><a href="#cb27-3" tabindex="-1"></a><span class="co">#&gt;                 property        value</span></span>
+<span id="cb27-4"><a href="#cb27-4" tabindex="-1"></a><span class="co">#&gt; 1                 format     interval</span></span>
+<span id="cb27-5"><a href="#cb27-5" tabindex="-1"></a><span class="co">#&gt; 2               directed          yes</span></span>
+<span id="cb27-6"><a href="#cb27-6" tabindex="-1"></a><span class="co">#&gt; 3               vertices           14</span></span>
+<span id="cb27-7"><a href="#cb27-7" tabindex="-1"></a><span class="co">#&gt; 4            edge spells          240</span></span>
+<span id="cb27-8"><a href="#cb27-8" tabindex="-1"></a><span class="co">#&gt; 5         distinct pairs          110</span></span>
+<span id="cb27-9"><a href="#cb27-9" tabindex="-1"></a><span class="co">#&gt; 6              time unit         step</span></span>
+<span id="cb27-10"><a href="#cb27-10" tabindex="-1"></a><span class="co">#&gt; 7          observed from            0</span></span>
+<span id="cb27-11"><a href="#cb27-11" tabindex="-1"></a><span class="co">#&gt; 8            observed to           14</span></span>
+<span id="cb27-12"><a href="#cb27-12" tabindex="-1"></a><span class="co">#&gt; 9                   span           14</span></span>
+<span id="cb27-13"><a href="#cb27-13" tabindex="-1"></a><span class="co">#&gt; 10             bin width            1</span></span>
+<span id="cb27-14"><a href="#cb27-14" tabindex="-1"></a><span class="co">#&gt; 11             time bins           14</span></span>
+<span id="cb27-15"><a href="#cb27-15" tabindex="-1"></a><span class="co">#&gt; 12 mean snapshot density       0.0922</span></span>
+<span id="cb27-16"><a href="#cb27-16" tabindex="-1"></a><span class="co">#&gt; 13      temporal density not computed</span></span>
+<span id="cb27-17"><a href="#cb27-17" tabindex="-1"></a><span class="co">#&gt; 14              sessions         none</span></span>
+<span id="cb27-18"><a href="#cb27-18" tabindex="-1"></a><span class="co">#&gt; 15     vertex attributes         none</span></span></code></pre></div>
+<p>Restricting observation to days 0–14 produces fourteen bins instead
+of 22. Mean snapshot density is 0.0922, compared with 0.0829 across the
+full period. This difference reflects the connections observed during
+the selected period.</p>
+<p>Observation bounds change the measurement period without deleting the
+original spells: <code>as.data.frame()</code> still returns them.
+Positive-duration spells contribute their intersection with the
+observation window, and instantaneous events on either observation
+boundary are retained.</p>
+<p>For interrupted observation, supply <code>observation_spells</code>
+with the start and end of each observed period. Overlapping or adjacent
+periods are merged. <code>what = &quot;observations&quot;</code> extracts the
+resulting calendar.</p>
+<div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" tabindex="-1"></a>gapped <span class="ot">&lt;-</span> <span class="fu">dynet</span>(</span>
+<span id="cb28-2"><a href="#cb28-2" tabindex="-1"></a>  school_contacts,</span>
+<span id="cb28-3"><a href="#cb28-3" tabindex="-1"></a>  <span class="at">observation_spells =</span> <span class="fu">data.frame</span>(<span class="at">start =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">12</span>), <span class="at">end =</span> <span class="fu">c</span>(<span class="dv">8</span>, <span class="dv">21</span>))</span>
+<span id="cb28-4"><a href="#cb28-4" tabindex="-1"></a>)</span>
+<span id="cb28-5"><a href="#cb28-5" tabindex="-1"></a><span class="fu">as.data.frame</span>(gapped, <span class="at">what =</span> <span class="st">&quot;observations&quot;</span>)</span>
+<span id="cb28-6"><a href="#cb28-6" tabindex="-1"></a><span class="co">#&gt;   observation start end duration instant</span></span>
+<span id="cb28-7"><a href="#cb28-7" tabindex="-1"></a><span class="co">#&gt; 1           1     0   8        8   FALSE</span></span>
+<span id="cb28-8"><a href="#cb28-8" tabindex="-1"></a><span class="co">#&gt; 2           2    12  21        9   FALSE</span></span></code></pre></div>
+<div class="sourceCode" id="cb29"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" tabindex="-1"></a><span class="fu">summary</span>(gapped)</span>
+<span id="cb29-2"><a href="#cb29-2" tabindex="-1"></a><span class="co">#&gt;                 property        value</span></span>
+<span id="cb29-3"><a href="#cb29-3" tabindex="-1"></a><span class="co">#&gt; 1                 format     interval</span></span>
+<span id="cb29-4"><a href="#cb29-4" tabindex="-1"></a><span class="co">#&gt; 2               directed          yes</span></span>
+<span id="cb29-5"><a href="#cb29-5" tabindex="-1"></a><span class="co">#&gt; 3               vertices           14</span></span>
+<span id="cb29-6"><a href="#cb29-6" tabindex="-1"></a><span class="co">#&gt; 4            edge spells          240</span></span>
+<span id="cb29-7"><a href="#cb29-7" tabindex="-1"></a><span class="co">#&gt; 5         distinct pairs          110</span></span>
+<span id="cb29-8"><a href="#cb29-8" tabindex="-1"></a><span class="co">#&gt; 6              time unit         step</span></span>
+<span id="cb29-9"><a href="#cb29-9" tabindex="-1"></a><span class="co">#&gt; 7          observed from            0</span></span>
+<span id="cb29-10"><a href="#cb29-10" tabindex="-1"></a><span class="co">#&gt; 8            observed to           21</span></span>
+<span id="cb29-11"><a href="#cb29-11" tabindex="-1"></a><span class="co">#&gt; 9                   span           21</span></span>
+<span id="cb29-12"><a href="#cb29-12" tabindex="-1"></a><span class="co">#&gt; 10             bin width            1</span></span>
+<span id="cb29-13"><a href="#cb29-13" tabindex="-1"></a><span class="co">#&gt; 11             time bins           17</span></span>
+<span id="cb29-14"><a href="#cb29-14" tabindex="-1"></a><span class="co">#&gt; 12 mean snapshot density       0.0824</span></span>
+<span id="cb29-15"><a href="#cb29-15" tabindex="-1"></a><span class="co">#&gt; 13      temporal density not computed</span></span>
+<span id="cb29-16"><a href="#cb29-16" tabindex="-1"></a><span class="co">#&gt; 14              sessions         none</span></span>
+<span id="cb29-17"><a href="#cb29-17" tabindex="-1"></a><span class="co">#&gt; 15     vertex attributes         none</span></span></code></pre></div>
+<p>The two periods contain eight and nine observed days. The measurement
+grid restarts within each period, yielding seventeen bins and none
+during the four-day gap. Exposure calculations use the seventeen
+observed days, and events within the gap are excluded from
+measurements.</p>
+<p><code>set_observations()</code> replaces the observation calendar
+after construction. <code>clear_observations()</code> restores
+continuous observation from the earliest raw onset to the latest raw
+termination.</p>
+<div class="sourceCode" id="cb30"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" tabindex="-1"></a>narrowed <span class="ot">&lt;-</span> <span class="fu">set_observations</span>(school, <span class="at">start =</span> <span class="dv">2</span>, <span class="at">end =</span> <span class="dv">10</span>)</span>
+<span id="cb30-2"><a href="#cb30-2" tabindex="-1"></a><span class="fu">as.data.frame</span>(narrowed, <span class="at">what =</span> <span class="st">&quot;observations&quot;</span>)</span>
+<span id="cb30-3"><a href="#cb30-3" tabindex="-1"></a><span class="co">#&gt;   observation start end duration instant</span></span>
+<span id="cb30-4"><a href="#cb30-4" tabindex="-1"></a><span class="co">#&gt; 1           1     2  10        8   FALSE</span></span></code></pre></div>
+<div class="sourceCode" id="cb31"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" tabindex="-1"></a>continuous <span class="ot">&lt;-</span> <span class="fu">clear_observations</span>(gapped)</span>
+<span id="cb31-2"><a href="#cb31-2" tabindex="-1"></a><span class="fu">as.data.frame</span>(continuous, <span class="at">what =</span> <span class="st">&quot;observations&quot;</span>)</span>
+<span id="cb31-3"><a href="#cb31-3" tabindex="-1"></a><span class="co">#&gt;   observation start   end duration instant</span></span>
+<span id="cb31-4"><a href="#cb31-4" tabindex="-1"></a><span class="co">#&gt; 1           1     0 21.52    21.52   FALSE</span></span></code></pre></div>
+</div>
+<div id="vertex-activity-spells" class="section level2">
+<h2>Vertex activity spells</h2>
+<p>Observation periods describe when data collection occurred. Vertex
+activity spells describe when individual vertices were eligible to
+participate, for example after enrolment or before departure. This
+distinction separates an eligible participant with no connections from a
+participant who was absent.</p>
+<p>Supply <code>vertex_spells</code> as a table containing
+<code>node</code>, <code>start</code>, and <code>end</code>. A vertex
+without an explicit activity declaration is treated as eligible
+throughout observation.</p>
+<div class="sourceCode" id="cb32"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" tabindex="-1"></a>arrivals <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb32-2"><a href="#cb32-2" tabindex="-1"></a>  <span class="at">node  =</span> <span class="fu">c</span>(<span class="st">&quot;Ana&quot;</span>, <span class="st">&quot;Ben&quot;</span>),</span>
+<span id="cb32-3"><a href="#cb32-3" tabindex="-1"></a>  <span class="at">start =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">7</span>),</span>
+<span id="cb32-4"><a href="#cb32-4" tabindex="-1"></a>  <span class="at">end   =</span> <span class="fu">c</span>(<span class="fl">21.52</span>, <span class="fl">21.52</span>)</span>
+<span id="cb32-5"><a href="#cb32-5" tabindex="-1"></a>)</span>
+<span id="cb32-6"><a href="#cb32-6" tabindex="-1"></a>scheduled <span class="ot">&lt;-</span> <span class="fu">dynet</span>(school_contacts, <span class="at">vertex_spells =</span> arrivals)</span>
+<span id="cb32-7"><a href="#cb32-7" tabindex="-1"></a><span class="fu">as.data.frame</span>(scheduled, <span class="at">what =</span> <span class="st">&quot;vertex_spells&quot;</span>)</span>
+<span id="cb32-8"><a href="#cb32-8" tabindex="-1"></a><span class="co">#&gt;   vertex_spell node start   end duration instant session onset_censored</span></span>
+<span id="cb32-9"><a href="#cb32-9" tabindex="-1"></a><span class="co">#&gt; 1            1  Ana     0 21.52    21.52   FALSE    &lt;NA&gt;          FALSE</span></span>
+<span id="cb32-10"><a href="#cb32-10" tabindex="-1"></a><span class="co">#&gt; 2            2  Ben     7 21.52    14.52   FALSE    &lt;NA&gt;          FALSE</span></span>
+<span id="cb32-11"><a href="#cb32-11" tabindex="-1"></a><span class="co">#&gt;   terminus_censored</span></span>
+<span id="cb32-12"><a href="#cb32-12" tabindex="-1"></a><span class="co">#&gt; 1             FALSE</span></span>
+<span id="cb32-13"><a href="#cb32-13" tabindex="-1"></a><span class="co">#&gt; 2             FALSE</span></span></code></pre></div>
+<p>Ben is declared eligible from day 7. His degree is <code>NA</code> in
+earlier bins, rather than zero. The following calls compare degree with
+and without this declaration.</p>
+<div class="sourceCode" id="cb33"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" tabindex="-1"></a>school_degree <span class="ot">&lt;-</span> <span class="fu">centrality_series</span>(school, <span class="at">measure =</span> <span class="st">&quot;degree&quot;</span>)</span>
+<span id="cb33-2"><a href="#cb33-2" tabindex="-1"></a><span class="fu">head</span>(school_degree, <span class="dv">4</span>)</span>
+<span id="cb33-3"><a href="#cb33-3" tabindex="-1"></a><span class="co">#&gt; # Degree (node-level)</span></span>
+<span id="cb33-4"><a href="#cb33-4" tabindex="-1"></a><span class="co">#&gt; # 14 vertices | 22 time points, 1 per bin | time in step</span></span>
+<span id="cb33-5"><a href="#cb33-5" tabindex="-1"></a><span class="co">#&gt; # first 4 of 308 rows</span></span>
+<span id="cb33-6"><a href="#cb33-6" tabindex="-1"></a><span class="co">#&gt;  time node measure value</span></span>
+<span id="cb33-7"><a href="#cb33-7" tabindex="-1"></a><span class="co">#&gt;     0  Ana  degree     1</span></span>
+<span id="cb33-8"><a href="#cb33-8" tabindex="-1"></a><span class="co">#&gt;     0  Ben  degree     1</span></span>
+<span id="cb33-9"><a href="#cb33-9" tabindex="-1"></a><span class="co">#&gt;     0 Cara  degree     1</span></span>
+<span id="cb33-10"><a href="#cb33-10" tabindex="-1"></a><span class="co">#&gt;     0  Dan  degree     1</span></span></code></pre></div>
+<div class="sourceCode" id="cb34"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" tabindex="-1"></a>scheduled_degree <span class="ot">&lt;-</span> <span class="fu">centrality_series</span>(scheduled, <span class="at">measure =</span> <span class="st">&quot;degree&quot;</span>)</span>
+<span id="cb34-2"><a href="#cb34-2" tabindex="-1"></a><span class="fu">head</span>(scheduled_degree, <span class="dv">4</span>)</span>
+<span id="cb34-3"><a href="#cb34-3" tabindex="-1"></a><span class="co">#&gt; # Degree (node-level)</span></span>
+<span id="cb34-4"><a href="#cb34-4" tabindex="-1"></a><span class="co">#&gt; # 14 vertices | 22 time points, 1 per bin | time in step</span></span>
+<span id="cb34-5"><a href="#cb34-5" tabindex="-1"></a><span class="co">#&gt; # first 4 of 308 rows</span></span>
+<span id="cb34-6"><a href="#cb34-6" tabindex="-1"></a><span class="co">#&gt;  time node measure value</span></span>
+<span id="cb34-7"><a href="#cb34-7" tabindex="-1"></a><span class="co">#&gt;     0  Ana  degree     1</span></span>
+<span id="cb34-8"><a href="#cb34-8" tabindex="-1"></a><span class="co">#&gt;     0  Ben  degree    NA</span></span>
+<span id="cb34-9"><a href="#cb34-9" tabindex="-1"></a><span class="co">#&gt;     0 Cara  degree     1</span></span>
+<span id="cb34-10"><a href="#cb34-10" tabindex="-1"></a><span class="co">#&gt;     0  Dan  degree     1</span></span></code></pre></div>
+<p><code>summary()</code> excludes missing values when summarising the
+trajectories, so periods before declared arrival no longer contribute to
+the mean.</p>
+<div class="sourceCode" id="cb35"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" tabindex="-1"></a>school_degree_summary <span class="ot">&lt;-</span> <span class="fu">summary</span>(school_degree)</span>
+<span id="cb35-2"><a href="#cb35-2" tabindex="-1"></a><span class="fu">head</span>(school_degree_summary, <span class="dv">3</span>)</span>
+<span id="cb35-3"><a href="#cb35-3" tabindex="-1"></a><span class="co">#&gt;   node measure  n     mean       sd min max peak_time</span></span>
+<span id="cb35-4"><a href="#cb35-4" tabindex="-1"></a><span class="co">#&gt; 1  Ana  degree 22 2.181818 2.015095   0   7         6</span></span>
+<span id="cb35-5"><a href="#cb35-5" tabindex="-1"></a><span class="co">#&gt; 2  Ben  degree 22 2.000000 1.234427   0   4         4</span></span>
+<span id="cb35-6"><a href="#cb35-6" tabindex="-1"></a><span class="co">#&gt; 3 Cara  degree 22 2.227273 1.342770   0   5         4</span></span></code></pre></div>
+<div class="sourceCode" id="cb36"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" tabindex="-1"></a>scheduled_degree_summary <span class="ot">&lt;-</span> <span class="fu">summary</span>(scheduled_degree)</span>
+<span id="cb36-2"><a href="#cb36-2" tabindex="-1"></a><span class="fu">head</span>(scheduled_degree_summary, <span class="dv">3</span>)</span>
+<span id="cb36-3"><a href="#cb36-3" tabindex="-1"></a><span class="co">#&gt;   node measure  n     mean       sd min max peak_time</span></span>
+<span id="cb36-4"><a href="#cb36-4" tabindex="-1"></a><span class="co">#&gt; 1  Ana  degree 22 2.181818 2.015095   0   7         6</span></span>
+<span id="cb36-5"><a href="#cb36-5" tabindex="-1"></a><span class="co">#&gt; 2  Ben  degree 15 2.133333 1.125463   0   4        11</span></span>
+<span id="cb36-6"><a href="#cb36-6" tabindex="-1"></a><span class="co">#&gt; 3 Cara  degree 22 2.227273 1.342770   0   5         4</span></span></code></pre></div>
+<p>Ana’s mean degree remains 2.18 across 22 bins. Ben’s mean changes
+from 2.00 across 22 bins to 2.13 across fifteen eligible bins. His
+standard deviation decreases from 1.23 to 1.13, and his peak moves from
+day 4 to day 11. The eleven spells recorded for Ben before day 7 remain
+in the raw data but are excluded from the eligible measurement period.
+This example illustrates the effect of an activity declaration; in an
+analysis, declarations should reflect the study’s participation
+criteria.</p>
+<p>Use <code>set_vertex_spells()</code> to replace declared activity and
+<code>add_vertex_spells()</code> to add periods of activity.</p>
+<div class="sourceCode" id="cb37"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" tabindex="-1"></a>activity <span class="ot">&lt;-</span> <span class="fu">set_vertex_spells</span>(school, arrivals)</span>
+<span id="cb37-2"><a href="#cb37-2" tabindex="-1"></a>extended <span class="ot">&lt;-</span> <span class="fu">add_vertex_spells</span>(activity,</span>
+<span id="cb37-3"><a href="#cb37-3" tabindex="-1"></a>                              <span class="fu">data.frame</span>(<span class="at">node =</span> <span class="st">&quot;Cara&quot;</span>, <span class="at">start =</span> <span class="dv">3</span>, <span class="at">end =</span> <span class="dv">12</span>))</span>
+<span id="cb37-4"><a href="#cb37-4" tabindex="-1"></a><span class="fu">as.data.frame</span>(extended, <span class="at">what =</span> <span class="st">&quot;vertex_spells&quot;</span>)</span>
+<span id="cb37-5"><a href="#cb37-5" tabindex="-1"></a><span class="co">#&gt;   vertex_spell node start   end duration instant session onset_censored</span></span>
+<span id="cb37-6"><a href="#cb37-6" tabindex="-1"></a><span class="co">#&gt; 1            1  Ana     0 21.52    21.52   FALSE    &lt;NA&gt;          FALSE</span></span>
+<span id="cb37-7"><a href="#cb37-7" tabindex="-1"></a><span class="co">#&gt; 2            2  Ben     7 21.52    14.52   FALSE    &lt;NA&gt;          FALSE</span></span>
+<span id="cb37-8"><a href="#cb37-8" tabindex="-1"></a><span class="co">#&gt; 3            3 Cara     3 12.00     9.00   FALSE    &lt;NA&gt;          FALSE</span></span>
+<span id="cb37-9"><a href="#cb37-9" tabindex="-1"></a><span class="co">#&gt;   terminus_censored</span></span>
+<span id="cb37-10"><a href="#cb37-10" tabindex="-1"></a><span class="co">#&gt; 1             FALSE</span></span>
+<span id="cb37-11"><a href="#cb37-11" tabindex="-1"></a><span class="co">#&gt; 2             FALSE</span></span>
+<span id="cb37-12"><a href="#cb37-12" tabindex="-1"></a><span class="co">#&gt; 3             FALSE</span></span></code></pre></div>
+</div>
+<div id="editing-a-network" class="section level2">
+<h2>Editing a network</h2>
+<p>Editing functions return a new network and leave their input
+unchanged. They update the relational spells and associated network
+representation together. Use these functions for temporal edits so that
+timing and network structure remain consistent.</p>
+<p><code>add_nodes()</code> adds vertices and attributes.
+<code>add_ties()</code> adds relational spells whose endpoints already
+exist in the vertex set.</p>
+<div class="sourceCode" id="cb38"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" tabindex="-1"></a>step1 <span class="ot">&lt;-</span> <span class="fu">add_nodes</span>(school, <span class="fu">data.frame</span>(<span class="at">name =</span> <span class="st">&quot;Nova&quot;</span>, <span class="at">role =</span> <span class="st">&quot;exchange&quot;</span>))</span>
+<span id="cb38-2"><a href="#cb38-2" tabindex="-1"></a>step2 <span class="ot">&lt;-</span> <span class="fu">add_ties</span>(step1, <span class="fu">data.frame</span>(</span>
+<span id="cb38-3"><a href="#cb38-3" tabindex="-1"></a>  <span class="at">from =</span> <span class="st">&quot;Ana&quot;</span>, <span class="at">to =</span> <span class="st">&quot;Nova&quot;</span>, <span class="at">start =</span> <span class="dv">4</span>, <span class="at">end =</span> <span class="dv">6</span></span>
+<span id="cb38-4"><a href="#cb38-4" tabindex="-1"></a>))</span>
+<span id="cb38-5"><a href="#cb38-5" tabindex="-1"></a><span class="fu">summary</span>(step2)</span>
+<span id="cb38-6"><a href="#cb38-6" tabindex="-1"></a><span class="co">#&gt;                 property        value</span></span>
+<span id="cb38-7"><a href="#cb38-7" tabindex="-1"></a><span class="co">#&gt; 1                 format     interval</span></span>
+<span id="cb38-8"><a href="#cb38-8" tabindex="-1"></a><span class="co">#&gt; 2               directed          yes</span></span>
+<span id="cb38-9"><a href="#cb38-9" tabindex="-1"></a><span class="co">#&gt; 3               vertices           15</span></span>
+<span id="cb38-10"><a href="#cb38-10" tabindex="-1"></a><span class="co">#&gt; 4            edge spells          241</span></span>
+<span id="cb38-11"><a href="#cb38-11" tabindex="-1"></a><span class="co">#&gt; 5         distinct pairs          111</span></span>
+<span id="cb38-12"><a href="#cb38-12" tabindex="-1"></a><span class="co">#&gt; 6              time unit         step</span></span>
+<span id="cb38-13"><a href="#cb38-13" tabindex="-1"></a><span class="co">#&gt; 7          observed from            0</span></span>
+<span id="cb38-14"><a href="#cb38-14" tabindex="-1"></a><span class="co">#&gt; 8            observed to        21.52</span></span>
+<span id="cb38-15"><a href="#cb38-15" tabindex="-1"></a><span class="co">#&gt; 9                   span        21.52</span></span>
+<span id="cb38-16"><a href="#cb38-16" tabindex="-1"></a><span class="co">#&gt; 10             bin width            1</span></span>
+<span id="cb38-17"><a href="#cb38-17" tabindex="-1"></a><span class="co">#&gt; 11             time bins           22</span></span>
+<span id="cb38-18"><a href="#cb38-18" tabindex="-1"></a><span class="co">#&gt; 12 mean snapshot density       0.0723</span></span>
+<span id="cb38-19"><a href="#cb38-19" tabindex="-1"></a><span class="co">#&gt; 13      temporal density not computed</span></span>
+<span id="cb38-20"><a href="#cb38-20" tabindex="-1"></a><span class="co">#&gt; 14              sessions         none</span></span>
+<span id="cb38-21"><a href="#cb38-21" tabindex="-1"></a><span class="co">#&gt; 15     vertex attributes         role</span></span></code></pre></div>
+<p>The edited network contains fifteen vertices, 241 spells, and 111
+distinct pairs. Original vertices have <code>NA</code> for the newly
+introduced <code>role</code> attribute. Mean snapshot density decreases
+from 0.0829 to 0.0723 despite the added connection: the additional
+vertex increases the number of possible ordered pairs from 182 to
+210.</p>
+<p>The original network remains unchanged.</p>
+<div class="sourceCode" id="cb39"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" tabindex="-1"></a><span class="fu">summary</span>(school)</span>
+<span id="cb39-2"><a href="#cb39-2" tabindex="-1"></a><span class="co">#&gt;                 property        value</span></span>
+<span id="cb39-3"><a href="#cb39-3" tabindex="-1"></a><span class="co">#&gt; 1                 format     interval</span></span>
+<span id="cb39-4"><a href="#cb39-4" tabindex="-1"></a><span class="co">#&gt; 2               directed          yes</span></span>
+<span id="cb39-5"><a href="#cb39-5" tabindex="-1"></a><span class="co">#&gt; 3               vertices           14</span></span>
+<span id="cb39-6"><a href="#cb39-6" tabindex="-1"></a><span class="co">#&gt; 4            edge spells          240</span></span>
+<span id="cb39-7"><a href="#cb39-7" tabindex="-1"></a><span class="co">#&gt; 5         distinct pairs          110</span></span>
+<span id="cb39-8"><a href="#cb39-8" tabindex="-1"></a><span class="co">#&gt; 6              time unit         step</span></span>
+<span id="cb39-9"><a href="#cb39-9" tabindex="-1"></a><span class="co">#&gt; 7          observed from            0</span></span>
+<span id="cb39-10"><a href="#cb39-10" tabindex="-1"></a><span class="co">#&gt; 8            observed to        21.52</span></span>
+<span id="cb39-11"><a href="#cb39-11" tabindex="-1"></a><span class="co">#&gt; 9                   span        21.52</span></span>
+<span id="cb39-12"><a href="#cb39-12" tabindex="-1"></a><span class="co">#&gt; 10             bin width            1</span></span>
+<span id="cb39-13"><a href="#cb39-13" tabindex="-1"></a><span class="co">#&gt; 11             time bins           22</span></span>
+<span id="cb39-14"><a href="#cb39-14" tabindex="-1"></a><span class="co">#&gt; 12 mean snapshot density       0.0829</span></span>
+<span id="cb39-15"><a href="#cb39-15" tabindex="-1"></a><span class="co">#&gt; 13      temporal density not computed</span></span>
+<span id="cb39-16"><a href="#cb39-16" tabindex="-1"></a><span class="co">#&gt; 14              sessions         none</span></span>
+<span id="cb39-17"><a href="#cb39-17" tabindex="-1"></a><span class="co">#&gt; 15     vertex attributes         none</span></span></code></pre></div>
+<p><code>remove_ties()</code> selects spells by their endpoints and
+onset, while <code>rename_nodes()</code> updates vertex names using a
+mapping from old to new names.</p>
+<div class="sourceCode" id="cb40"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" tabindex="-1"></a>step3 <span class="ot">&lt;-</span> <span class="fu">remove_ties</span>(step2, <span class="at">from =</span> <span class="st">&quot;Ana&quot;</span>, <span class="at">to =</span> <span class="st">&quot;Nova&quot;</span>, <span class="at">start =</span> <span class="dv">4</span>)</span>
+<span id="cb40-2"><a href="#cb40-2" tabindex="-1"></a><span class="fu">summary</span>(step3)</span>
+<span id="cb40-3"><a href="#cb40-3" tabindex="-1"></a><span class="co">#&gt;                 property        value</span></span>
+<span id="cb40-4"><a href="#cb40-4" tabindex="-1"></a><span class="co">#&gt; 1                 format     interval</span></span>
+<span id="cb40-5"><a href="#cb40-5" tabindex="-1"></a><span class="co">#&gt; 2               directed          yes</span></span>
+<span id="cb40-6"><a href="#cb40-6" tabindex="-1"></a><span class="co">#&gt; 3               vertices           15</span></span>
+<span id="cb40-7"><a href="#cb40-7" tabindex="-1"></a><span class="co">#&gt; 4            edge spells          240</span></span>
+<span id="cb40-8"><a href="#cb40-8" tabindex="-1"></a><span class="co">#&gt; 5         distinct pairs          110</span></span>
+<span id="cb40-9"><a href="#cb40-9" tabindex="-1"></a><span class="co">#&gt; 6              time unit         step</span></span>
+<span id="cb40-10"><a href="#cb40-10" tabindex="-1"></a><span class="co">#&gt; 7          observed from            0</span></span>
+<span id="cb40-11"><a href="#cb40-11" tabindex="-1"></a><span class="co">#&gt; 8            observed to        21.52</span></span>
+<span id="cb40-12"><a href="#cb40-12" tabindex="-1"></a><span class="co">#&gt; 9                   span        21.52</span></span>
+<span id="cb40-13"><a href="#cb40-13" tabindex="-1"></a><span class="co">#&gt; 10             bin width            1</span></span>
+<span id="cb40-14"><a href="#cb40-14" tabindex="-1"></a><span class="co">#&gt; 11             time bins           22</span></span>
+<span id="cb40-15"><a href="#cb40-15" tabindex="-1"></a><span class="co">#&gt; 12 mean snapshot density       0.0719</span></span>
+<span id="cb40-16"><a href="#cb40-16" tabindex="-1"></a><span class="co">#&gt; 13      temporal density not computed</span></span>
+<span id="cb40-17"><a href="#cb40-17" tabindex="-1"></a><span class="co">#&gt; 14              sessions         none</span></span>
+<span id="cb40-18"><a href="#cb40-18" tabindex="-1"></a><span class="co">#&gt; 15     vertex attributes         role</span></span></code></pre></div>
+<div class="sourceCode" id="cb41"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" tabindex="-1"></a>renamed <span class="ot">&lt;-</span> <span class="fu">rename_nodes</span>(step2, <span class="fu">c</span>(<span class="at">Nova =</span> <span class="st">&quot;Nova B.&quot;</span>))</span>
+<span id="cb41-2"><a href="#cb41-2" tabindex="-1"></a>renamed_nodes <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(renamed, <span class="at">what =</span> <span class="st">&quot;nodes&quot;</span>)</span>
+<span id="cb41-3"><a href="#cb41-3" tabindex="-1"></a><span class="fu">tail</span>(renamed_nodes, <span class="dv">3</span>)</span>
+<span id="cb41-4"><a href="#cb41-4" tabindex="-1"></a><span class="co">#&gt;       name     role</span></span>
+<span id="cb41-5"><a href="#cb41-5" tabindex="-1"></a><span class="co">#&gt; 13    Mira     &lt;NA&gt;</span></span>
+<span id="cb41-6"><a href="#cb41-6" tabindex="-1"></a><span class="co">#&gt; 14    Nils     &lt;NA&gt;</span></span>
+<span id="cb41-7"><a href="#cb41-7" tabindex="-1"></a><span class="co">#&gt; 15 Nova B. exchange</span></span></code></pre></div>
+<p>Removing the added spell restores the original 240 spells and 110
+connected pairs, but Nova remains as an isolated vertex. Mean density is
+therefore 0.0719, using the enlarged denominator of 210 possible
+pairs.</p>
+<p><code>induce_subgraph()</code> restricts the network to selected
+vertices or spells. <code>nodes</code> accepts vertex names, and
+<code>ties</code> can specify a condition over the spell table.</p>
+<div class="sourceCode" id="cb42"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" tabindex="-1"></a>five <span class="ot">&lt;-</span> <span class="fu">induce_subgraph</span>(school, <span class="at">nodes =</span> <span class="fu">c</span>(<span class="st">&quot;Ana&quot;</span>, <span class="st">&quot;Ben&quot;</span>, <span class="st">&quot;Cara&quot;</span>, <span class="st">&quot;Dan&quot;</span>, <span class="st">&quot;Eve&quot;</span>))</span>
+<span id="cb42-2"><a href="#cb42-2" tabindex="-1"></a><span class="fu">summary</span>(five)</span>
+<span id="cb42-3"><a href="#cb42-3" tabindex="-1"></a><span class="co">#&gt;                 property        value</span></span>
+<span id="cb42-4"><a href="#cb42-4" tabindex="-1"></a><span class="co">#&gt; 1                 format     interval</span></span>
+<span id="cb42-5"><a href="#cb42-5" tabindex="-1"></a><span class="co">#&gt; 2               directed          yes</span></span>
+<span id="cb42-6"><a href="#cb42-6" tabindex="-1"></a><span class="co">#&gt; 3               vertices            5</span></span>
+<span id="cb42-7"><a href="#cb42-7" tabindex="-1"></a><span class="co">#&gt; 4            edge spells           18</span></span>
+<span id="cb42-8"><a href="#cb42-8" tabindex="-1"></a><span class="co">#&gt; 5         distinct pairs           11</span></span>
+<span id="cb42-9"><a href="#cb42-9" tabindex="-1"></a><span class="co">#&gt; 6              time unit         step</span></span>
+<span id="cb42-10"><a href="#cb42-10" tabindex="-1"></a><span class="co">#&gt; 7          observed from         3.17</span></span>
+<span id="cb42-11"><a href="#cb42-11" tabindex="-1"></a><span class="co">#&gt; 8            observed to        21.33</span></span>
+<span id="cb42-12"><a href="#cb42-12" tabindex="-1"></a><span class="co">#&gt; 9                   span        18.16</span></span>
+<span id="cb42-13"><a href="#cb42-13" tabindex="-1"></a><span class="co">#&gt; 10             bin width            1</span></span>
+<span id="cb42-14"><a href="#cb42-14" tabindex="-1"></a><span class="co">#&gt; 11             time bins           19</span></span>
+<span id="cb42-15"><a href="#cb42-15" tabindex="-1"></a><span class="co">#&gt; 12 mean snapshot density       0.0684</span></span>
+<span id="cb42-16"><a href="#cb42-16" tabindex="-1"></a><span class="co">#&gt; 13      temporal density not computed</span></span>
+<span id="cb42-17"><a href="#cb42-17" tabindex="-1"></a><span class="co">#&gt; 14              sessions         none</span></span>
+<span id="cb42-18"><a href="#cb42-18" tabindex="-1"></a><span class="co">#&gt; 15     vertex attributes         none</span></span></code></pre></div>
+<p>The five selected students share eighteen spells on eleven of twenty
+possible ordered pairs. Without explicit observation bounds, the
+subgraph’s observation period follows its own spell boundaries, here
+days 3.17–21.33. Declare <code>observation_start</code> and
+<code>observation_end</code> when the original study period should be
+retained.</p>
+</div>
+<div id="descriptive-measures" class="section level2">
+<h2>Descriptive measures</h2>
+<p>Dynet provides graph-level measures describing the network as a whole
+and vertex-level measures describing individual positions. For
+window-based calculations, spells active within each window form a
+snapshot on which the selected measures are computed. Graph-level
+trajectories are obtained with <code>metrics()</code>; vertex centrality
+trajectories use <code>centrality_series()</code>.</p>
+<p>The following call requests three graph-level measures in a tidy
+result identified by <code>time</code> and <code>measure</code>.</p>
+<div class="sourceCode" id="cb43"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" tabindex="-1"></a>basics <span class="ot">&lt;-</span> <span class="fu">metrics</span>(school, <span class="at">measure =</span> <span class="fu">c</span>(<span class="st">&quot;density&quot;</span>, <span class="st">&quot;edges&quot;</span>, <span class="st">&quot;active_nodes&quot;</span>))</span>
+<span id="cb43-2"><a href="#cb43-2" tabindex="-1"></a><span class="fu">head</span>(basics, <span class="dv">6</span>)</span>
+<span id="cb43-3"><a href="#cb43-3" tabindex="-1"></a><span class="co">#&gt; # Graph structure (graph-level)</span></span>
+<span id="cb43-4"><a href="#cb43-4" tabindex="-1"></a><span class="co">#&gt; # 22 time points, 1 per bin | time in step</span></span>
+<span id="cb43-5"><a href="#cb43-5" tabindex="-1"></a><span class="co">#&gt; # measures: density, edges, active_nodes</span></span>
+<span id="cb43-6"><a href="#cb43-6" tabindex="-1"></a><span class="co">#&gt; # first 6 of 66 rows</span></span>
+<span id="cb43-7"><a href="#cb43-7" tabindex="-1"></a><span class="co">#&gt;  time      measure       value</span></span>
+<span id="cb43-8"><a href="#cb43-8" tabindex="-1"></a><span class="co">#&gt;     0      density  0.05494505</span></span>
+<span id="cb43-9"><a href="#cb43-9" tabindex="-1"></a><span class="co">#&gt;     0        edges 10.00000000</span></span>
+<span id="cb43-10"><a href="#cb43-10" tabindex="-1"></a><span class="co">#&gt;     0 active_nodes 13.00000000</span></span>
+<span id="cb43-11"><a href="#cb43-11" tabindex="-1"></a><span class="co">#&gt;     1      density  0.04395604</span></span>
+<span id="cb43-12"><a href="#cb43-12" tabindex="-1"></a><span class="co">#&gt;     1        edges  8.00000000</span></span>
+<span id="cb43-13"><a href="#cb43-13" tabindex="-1"></a><span class="co">#&gt;     1 active_nodes  8.00000000</span></span></code></pre></div>
+<p><code>edges</code> counts distinct connected ordered pairs,
+<code>density</code> divides that count by the possible pairs, and
+<code>active_nodes</code> counts vertices with at least one connection.
+On day 0, ten connections involve thirteen students, giving density
+0.055. On day 1, eight connections involve eight students, giving
+density 0.044.</p>
+<p><code>summary()</code> reports the mean, standard deviation, range,
+and peak time for each measure.</p>
+<div class="sourceCode" id="cb44"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb44-1"><a href="#cb44-1" tabindex="-1"></a>six <span class="ot">&lt;-</span> <span class="fu">metrics</span>(school, <span class="at">measure =</span> <span class="fu">c</span>(<span class="st">&quot;density&quot;</span>, <span class="st">&quot;edges&quot;</span>, <span class="st">&quot;active_nodes&quot;</span>,</span>
+<span id="cb44-2"><a href="#cb44-2" tabindex="-1"></a>                                   <span class="st">&quot;components&quot;</span>, <span class="st">&quot;transitivity&quot;</span>,</span>
+<span id="cb44-3"><a href="#cb44-3" tabindex="-1"></a>                                   <span class="st">&quot;reciprocity&quot;</span>))</span>
+<span id="cb44-4"><a href="#cb44-4" tabindex="-1"></a><span class="fu">summary</span>(six)</span>
+<span id="cb44-5"><a href="#cb44-5" tabindex="-1"></a><span class="co">#&gt;        measure  n        mean         sd        min        max peak_time</span></span>
+<span id="cb44-6"><a href="#cb44-6" tabindex="-1"></a><span class="co">#&gt; 1 active_nodes 22 12.13636364 2.07698166 7.00000000 14.0000000         5</span></span>
+<span id="cb44-7"><a href="#cb44-7" tabindex="-1"></a><span class="co">#&gt; 2   components 22  3.59090909 2.38365647 1.00000000  9.0000000        21</span></span>
+<span id="cb44-8"><a href="#cb44-8" tabindex="-1"></a><span class="co">#&gt; 3      density 22  0.08291708 0.03929021 0.03296703  0.1648352        14</span></span>
+<span id="cb44-9"><a href="#cb44-9" tabindex="-1"></a><span class="co">#&gt; 4        edges 22 15.09090909 7.15081807 6.00000000 30.0000000        14</span></span>
+<span id="cb44-10"><a href="#cb44-10" tabindex="-1"></a><span class="co">#&gt; 5  reciprocity 22  0.14503815 0.13886108 0.00000000  0.4666667        14</span></span>
+<span id="cb44-11"><a href="#cb44-11" tabindex="-1"></a><span class="co">#&gt; 6 transitivity 22  0.11496262 0.12515367 0.00000000  0.4000000        11</span></span></code></pre></div>
+<p>Across 22 bins, mean density is 0.083 and reaches 0.165 on day 14,
+when thirty pairs are connected. An average of 12.1 students have a
+connection within a daily bin, with a minimum of seven.</p>
+<p><code>components</code> counts weakly connected components, ignoring
+direction and including isolated vertices. It averages 3.6 and equals 1
+on day 14. Its maximum of nine occurs in the final partial bin, when six
+connections leave seven students isolated.</p>
+<p><code>reciprocity</code> is the proportion of directed connections
+<span class="math inline">\(i \to j\)</span> for which <span class="math inline">\(j \to i\)</span> is also present in the window. It
+averages 0.145 and reaches 0.467 on day 14. <code>transitivity</code> is
+the proportion of two-paths <span class="math inline">\(i \to j \to
+k\)</span> closed by <span class="math inline">\(i \to k\)</span>,
+following the weak convention of <code>sna::gtrans()</code>. It averages
+0.115 and peaks at 0.4 on day 11. Both measures describe snapshot
+structure; they do not establish the temporal order of the constituent
+interactions.</p>
+<p><code>step</code> specifies the interval between measurements, while
+<code>window</code> specifies the duration covered from each measurement
+time. Equal values produce non-overlapping windows. A larger
+<code>window</code> produces overlapping, rolling measurements.</p>
+<div class="sourceCode" id="cb45"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" tabindex="-1"></a>rolling <span class="ot">&lt;-</span> <span class="fu">metrics</span>(school, <span class="at">measure =</span> <span class="st">&quot;density&quot;</span>, <span class="at">step =</span> <span class="dv">1</span>, <span class="at">window =</span> <span class="dv">7</span>)</span>
+<span id="cb45-2"><a href="#cb45-2" tabindex="-1"></a><span class="fu">head</span>(rolling, <span class="dv">4</span>)</span>
+<span id="cb45-3"><a href="#cb45-3" tabindex="-1"></a><span class="co">#&gt; # Density (graph-level)</span></span>
+<span id="cb45-4"><a href="#cb45-4" tabindex="-1"></a><span class="co">#&gt; # 22 time points, step 1, window 7 (rolling) | time in step</span></span>
+<span id="cb45-5"><a href="#cb45-5" tabindex="-1"></a><span class="co">#&gt; # first 4 of 22 rows</span></span>
+<span id="cb45-6"><a href="#cb45-6" tabindex="-1"></a><span class="co">#&gt;  time measure     value</span></span>
+<span id="cb45-7"><a href="#cb45-7" tabindex="-1"></a><span class="co">#&gt;     0 density 0.3241758</span></span>
+<span id="cb45-8"><a href="#cb45-8" tabindex="-1"></a><span class="co">#&gt;     1 density 0.3461538</span></span>
+<span id="cb45-9"><a href="#cb45-9" tabindex="-1"></a><span class="co">#&gt;     2 density 0.3571429</span></span>
+<span id="cb45-10"><a href="#cb45-10" tabindex="-1"></a><span class="co">#&gt;     3 density 0.3791209</span></span></code></pre></div>
+<p>The first seven-day window contains 59 connected pairs, giving
+density 0.324, compared with ten pairs and density 0.055 in the first
+day alone. Wider windows combine more relationships while providing less
+detail about changes within each interval.</p>
+<div class="sourceCode" id="cb46"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb46-1"><a href="#cb46-1" tabindex="-1"></a>school_density <span class="ot">&lt;-</span> <span class="fu">metrics</span>(school, <span class="at">measure =</span> <span class="st">&quot;density&quot;</span>)</span>
+<span id="cb46-2"><a href="#cb46-2" tabindex="-1"></a><span class="fu">plot</span>(school_density)</span></code></pre></div>
+<p><img role="img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASAAAAEgCAYAAAAUg66AAAAEDmlDQ1BrQ0dDb2xvclNwYWNlR2VuZXJpY1JHQgAAOI2NVV1oHFUUPpu5syskzoPUpqaSDv41lLRsUtGE2uj+ZbNt3CyTbLRBkMns3Z1pJjPj/KRpKT4UQRDBqOCT4P9bwSchaqvtiy2itFCiBIMo+ND6R6HSFwnruTOzu5O4a73L3PnmnO9+595z7t4LkLgsW5beJQIsGq4t5dPis8fmxMQ6dMF90A190C0rjpUqlSYBG+PCv9rt7yDG3tf2t/f/Z+uuUEcBiN2F2Kw4yiLiZQD+FcWyXYAEQfvICddi+AnEO2ycIOISw7UAVxieD/Cyz5mRMohfRSwoqoz+xNuIB+cj9loEB3Pw2448NaitKSLLRck2q5pOI9O9g/t/tkXda8Tbg0+PszB9FN8DuPaXKnKW4YcQn1Xk3HSIry5ps8UQ/2W5aQnxIwBdu7yFcgrxPsRjVXu8HOh0qao30cArp9SZZxDfg3h1wTzKxu5E/LUxX5wKdX5SnAzmDx4A4OIqLbB69yMesE1pKojLjVdoNsfyiPi45hZmAn3uLWdpOtfQOaVmikEs7ovj8hFWpz7EV6mel0L9Xy23FMYlPYZenAx0yDB1/PX6dledmQjikjkXCxqMJS9WtfFCyH9XtSekEF+2dH+P4tzITduTygGfv58a5VCTH5PtXD7EFZiNyUDBhHnsFTBgE0SQIA9pfFtgo6cKGuhooeilaKH41eDs38Ip+f4At1Rq/sjr6NEwQqb/I/DQqsLvaFUjvAx+eWirddAJZnAj1DFJL0mSg/gcIpPkMBkhoyCSJ8lTZIxk0TpKDjXHliJzZPO50dR5ASNSnzeLvIvod0HG/mdkmOC0z8VKnzcQ2M/Yz2vKldduXjp9bleLu0ZWn7vWc+l0JGcaai10yNrUnXLP/8Jf59ewX+c3Wgz+B34Df+vbVrc16zTMVgp9um9bxEfzPU5kPqUtVWxhs6OiWTVW+gIfywB9uXi7CGcGW/zk98k/kmvJ95IfJn/j3uQ+4c5zn3Kfcd+AyF3gLnJfcl9xH3OfR2rUee80a+6vo7EK5mmXUdyfQlrYLTwoZIU9wsPCZEtP6BWGhAlhL3p2N6sTjRdduwbHsG9kq32sgBepc+xurLPW4T9URpYGJ3ym4+8zA05u44QjST8ZIoVtu3qE7fWmdn5LPdqvgcZz8Ww8BWJ8X3w0PhQ/wnCDGd+LvlHs8dRy6bLLDuKMaZ20tZrqisPJ5ONiCq8yKhYM5cCgKOu66Lsc0aYOtZdo5QCwezI4wm9J/v0X23mlZXOfBjj8Jzv3WrY5D+CsA9D7aMs2gGfjve8ArD6mePZSeCfEYt8CONWDw8FXTxrPqx/r9Vt4biXeANh8vV7/+/16ffMD1N8AuKD/A/8leAvFY9bLAAAAOGVYSWZNTQAqAAAACAABh2kABAAAAAEAAAAaAAAAAAACoAIABAAAAAEAAAEgoAMABAAAAAEAAAEgAAAAAKtAJY0AAEAASURBVHgB7X0HmFTV2f87s33ZpeyCFEWKIjZQsMYKIqBi1Bg1Yi8I0QRJvk9M1M+G0dh7hBiJfwUVVGLjiYiCBCyoQYWIjQhIkbpL2747c//nd2bOnTuzd2buzNx7p73v8+zOnXPPPeV3Zt45560eTRAxMQKMACOQBgS8aeiTu2QEGAFGQCLADIg/CIwAI5A2BJgBpQ167pgRYASYAfFngBFgBNKGADOgtEHPHTMCjAAzIP4MMAKMQNoQYAaUNui5Y0aAEchrBrRr1y7atGmTo58Cn88n+6irq3O0n507d9LmzZsd7UPNpb6+3tF+MJctW7Y42gc3nhkI5DUDyowl4FEwAvmLADOg/F17njkjkHYEmAGlfQl4AIxA/iLADCh/155nzgikHQFmQGlfAh4AI5C/CDADyt+155kzAmlHgBlQ2peAB8AI5C8CzIDyd+155oxA2hFgBpT2JcjcAbTUfp+5g+OR5QQCzIByYhntn0Tdt7Np43OH0Z6VM+xvnFtkBIIIMAPij0I7BPytDVS7+GZZ7mtgl4h2AHGBbQgwA7INytxpaNdnD5Kv/ic5Ic3XnDsT45lkHALMgDJuSdI7oLbd62jXvx8hT2G5HIjma0nvgLj3nEYgLQyopaUlIW/nDRs2UFtbW7uFgNc0PNqZ7EOgdsktpPmaqPOxN8lGtbYm+xrnlhiBCAQKI947/vbZZ5+lOXPmUGFhIVVXV9MDDzxAVVVVUftduXIlTZw4kV5++WXq2rWrrNfQ0EB33XUXfffdd+TxeKh///509913U3FxcdR2+EZ8BJo2fkT1379Kpb2HUYcDzqcdH9wqmBEfweIjxzWSRcDVHdCKFSto7ty5NH36dJo9e7ZkHFOnTjUdO9KVvfHGG3TjjTdSa2trWJ0XX3yRmpqa6NVXX5XtYHeEdpmSRwB41yy6gcjjpephD5CnIMDMmQEljyk/GR8BV3dAixcvpuHDh1P37t3lyMaOHUvXXHMN3XzzzXInYxzusmXL6M0336T77ruPrr32WuMtyZjuv/9+8nq98m/KlCnk9/vD6kS+wRcMTMtI6ljX2NhoLLb1Wo0LTNTJfhAsDHNMto+Gb1+glq1fUNnBV5Gvw37U2rRD4tDW3KC36dZcsC5W54Jdb0FBga1rxo25h4CrDAjRB4cMGaLPrkePHgR5EOQ4nTt31stxMWjQILlTUkxC3UQ0Psh+tm7dSo8++ijt2LGDRo4cSVdddZWqEvUVz5lRtHKzusmWgfkZGaBvy1LyduxHnrIAM0623cjnkpmL1lpHzUvvJCqqJP/A6yS+WluAKbc01cn3xn7A5JJldMZ24l1bmQs+N2VlZfGa4vsZioCrDKi2tpY6dOigQ6E+OHv27GnHgEpKSvR6xouamhq5W5o1axb95je/IYQ6feihh+jggw+m448/3lg17BqyIiVDUjfwLJhCZLm6b8crdg2Yd3l5ufxDm36xu/hp1kVUfuBFVHXqNDu6IWDY3Nyc1Fzqv36bmpu2U6fj/0SVex8gx6P522ijuCoWnxCFD3ZZYPhYQ7V2tgw+ohHMBT9MkBHGI979xEMos++7yoA6duxIECArUtfqA67KY73ii4zt+cUXX0yDBw+WVVetWkXz5s2LyYBQsaioKKxpHOHMysMqpfgGX1oQviiq/9b6QHxoralGL0uxG3kUBZNVfSTUXkutrF7W62jD8wIrIQ/y+Fv0MoWXcS4J9WOxMvpJei4W++BqmYGAq0JoyH6MQeBxnegWGhozfMmMmrPKysp2x4TMgNd8FFprIKi7v2WPeQWXS/0tAYboLa4M69lTUEpaG2vBwkDhN7Yi4CoDGj16NL333nu0evVquROaOXMmjRgxQk4Iu6GlS5fKrXesGeLX8fTTTyccwbATwnYdu5+jjz461mMZdc+vGFBzZtgwaUFG6C3uGIaTp6CE1fBhiPAbuxFwlQEdcsghNGbMGBo3bhxBAwYZzPjx4+WckIZl8uTJlnYyEyZMkELQX/ziF3ThhRdS79696aKLLrIbG8fa04SvFcjfstuxPhJpWI3DW1wR9pinkBlQGCD8xnYEXJUBYfRQu1922WVyp4Ojk6J+/frRkiVL1Fv9FQaLkeWQJcGAEQwM8ggnBaL6QGy88AutE8ifITsgdQTztDuCgQGFmy7YCAM3xQiQ6wwImEPDFU3LlciaVFSE/2In8mw66yoZkDr6pHMs6FtrhSzKQ97CcHU2H8HSvTK537+rR7Dch9PaDBHuIkCaOIalXxDtb95D3pJO7QYvGVAbO6O2A4YLbEOAGZBtUFpvSO2A8EQmHMP8YgcUefySs5FCaD6CWV9ZrpkoAsyAEkXMhvpKBoSmMmIHJNTwkSp4jM1bKNTw7IwKKJgcQoAZkEPAxmpWacFQJxN2QJrQxpkxIBIOqcyAYq0k30sVAWZAqSKYxPPKDgiPKhV4Es3Y9gjGE6mCR+OQAZFwyWBiBJxCgBmQU8jGaDdcBpReWyA/nE4Fk/FEGCFi+B5xBAPJOvKK/zEC9iLADMhePC21FsaA0myMqDUHGKC3qL1Jg9wBiRmxO4alZeVKSSDADCgJ0FJ9JOwIlmZjRCUQN5MBqaBkxILoVJecn4+CADOgKMA4WWwUQqfbGFFp4SL9wDB/OKOC/GwNLXHgf/YjwAzIfkzjtuhvC3jDo2K6tWCKAXki/MAwNviCSeLMGAEc+L/tCDADsh3S+A1qwu7GUxQIzJZuLZjagZkfwQIMiFXx8deUaySHADOg5HBL6Sm4YhR06CHb8AeFwCk1mMLDagcUVQ0v2ubUPCkAzI/GRIAZUEx4nLkJLVhBqQg3Kgz9/C3pjQkU8oQPjwWEmetaMBZCO/NB4FaJGVAaPgSQAXmKyoXxXychA0qzHVDQDCD2EYwdUtPwMcmLLpkBubzMiOJIQqjrFTIgb0nHtAuhIY8CmdoBBQ0R+Qjm8ockj7pjBuTyYsPvCgQhNFTfSgbj8jD07uAJDwIzjCQ+gkUiwu/tRoAZkN2IxmlPGSHqO6B0y4CCR0CPqSU0Z0eNs5x8O0UEmAGlCGCijysjxMAOSAQBE8cxLY12NkhKCIotA+LMGImuM9e3hgAzIGs42VZLuT5IBhQ89qTTGFEdAZVdknGiyhmVfcGMqPC1nQgwA7ITTQttKUdUr9SCBeQu6TRGBANCNEQkAowklgFFIsLv7UYgLUHp7Z5ENrWn4kFD5uItCYQ7TfcOyCtywpuSsFMCcWYMU3S40AYEmAHZAGIiTYR2QMIVQ6Q9BqljUCLt2FUXrhjeEnMGhJCsIHbFsAttbicSAWZAkYg4/D4kAyonjxbIG5/uHVBhWTfzWSMioqB0CsnNB8aluYIAMyCXV1JpwaCGF9ZAsvd0MyAzPzAMTJcBcX54uU78z34EmAHZj2nMFpUdkJQBeYtk3XQdweTOxt8qDSLNBq3iAbEMyAwdLrMDAWZAdqCYQBshGVA5aUEhb7ocUhXjM7MBwpRURESWASWwwFw1IQSYASUEV+qVFQOC3Y1SfKu4zKm3nlgLigGZBSNDSxyQLDE8uXbiCDADShyzlJ4IHcGEENobgD9ddkCxgpFhkvoRrI2zo6a06PxwVASYAUWFxpkbISF0hX7ESVdIDrUDinoECzJIPoI581ngVomYAbn8KQjtgMQRTKq5PWkLyRGXAUFG5fGyHZDLn5F86o5dMVxebeX8CeYD9wcZEyhNucEUAzLzhFew4BjGvmAKDX61GwFmQHYjGqc9uGLgC698r5CRNG0yIOUJbxILSE0DjJKPYAoNfrUbAWZAdiMapz1owYyGfzIoWZrCsirZU1RfMDEXaMKYAcVZVL6dNALMgJKGLrkHIQPyFJbrD3tLEBc6PYHpVTTEaGp4DBK2QGyIqC8XX9iMADMgmwGN15zcAUk3jEBNyIAgF9I0f7xHbb+vx4MWx8BoJGVAnBUjGjxcniICzIBSBDDRx+UOyMiAgl9+ZZOTaHup1FeyJ+ORMLI9KQNq46wYkbjwe3sQYAZkD46WW9HaGoUMKJAVFQ+pYPDpOIapnGDR7IDkpKQQmg0RLS8wV0wIAWZACcGVWmXl/OkpNDAgkRsMpFTiqfWQ2NOqz1hqeMQEYiF0YrhybesIMAOyjlXKNUOxgIwMKBAMLB07IBz7IBD3eAuiz00KoTkofXSA+E4qCDADSgW9BJ9VjqiIB60IWjCQkseocjdesQOKefwSg5DW2v42N4bDfeQhAsyAXFx0Yzxo1a0uA0qDNTQYEALSxyKVGcMvZFdMjIDdCDADshvRGO2FdkChIxgsoUHKKDDG47bfwpHQ0g5I9MzuGLbDzw0KBJgBufgxCMmAjEcwxYDcN0ZEHKJYKnhAo4KSEdsCufhJyZ+umAG5uNahUByhHZA3TVowGD7CwjnuEUw4o4L8oi4TI2A3AsyA7EY0RnvqCGbMQgpfMJDbWjB15FP9Rxs2R0WMhgyX24EAMyA7ULTYhhJCBzJiBB5SQmjNZSG06i/+EUyl5mFVvMVl5moJIMAMKAGwUq2qxwIyccVwfQfUUienE8sTHhWkGl68ahyWVeLF/+xFgBmQvXjGbC0UDTEkhPYUFIkveanrdkC6J3yUrKhqIjoDYiG0goRfbUSAGZCNYMZrKiSErgirGgjJsTuszOk3/uY9sgvLOyAfO6Q6vSb52D4zIBdXPbQDCmnB0D3kQG7nBtNagwworiFiUAbERzAXPyn50xUzIBfXWsmAjK4Y6N4jVPFqR+LWcCx5wmNsQTU8O6S6tTL51Q8zIBfXW2nBjGp4dO8Vchi3d0DK9yy+HZDIjCGIGZCEgf/ZjEBaGFBLSwtt2bLF8lQ2bNhAbW3tHSJ37dpFTU3ZYyCn7IC8Iii9kaQxonD4dNPfSgVAYzW8cSX42m0EXM8L9uyzz9KcOXOosLCQqqur6YEHHqCqqqqo8165ciVNnDiRXn75Zerataus9+OPP9LDDz9MmzdvlozpsMMOo8mTJ1NZWVnUdjLhhpQBiTxb0HwZSbcFQnD6QnfmEDqCRQ/HijEqZ1T2BTOuGF/bhYCrO6AVK1bQ3Llzafr06TR79mzq378/TZ061XQumqbRG2+8QTfeeCO1traG1ZkxYwYddNBBNGvWLHrppZdo27Zt9M4774TVycQ32AGZOX8qa2R1LHJj7KqvWAHpMQ5Ww7uxGvnbh6sMaPHixTR8+HDq3r07lZSU0NixY2nhwoUiILvWbgWWLVtGb775Jt13331h91C3d+/edO6558rcWsXFxTRkyBBaunRpWL1MfCPjQRuiIaox6jGBXMyOEdoBxQ7HQciOKohlQGq1+NVOBFw9gm3atEkyCzWBHj16EORBkOV07txZFcvXQYMGyZ1SpOwHCf0uv/xyvS52R++++y6dffbZepnZBRhXTU1N2C2fzyffb9++PazczjeKudbX11Nbk1B9C61SZH8trYGIhDu2bRBH075JdQ+c0Fdk29Eaa64LYFG7u5k8ddHn76sLyNjq99RSa22tbK6uro4aG52LD5TIXCorK+WPWbR5cnlmI+DqDqhWfIA7dAjZwCiZzZ49AZsUI1TYIcUjMJ8777xTypDOO++8eNXTf79NZEU15ATTBxQUSivbHL3cwQutTbhieEV6aG+4PKpdl6KOJDZEbAcNF6SOgKs7oI4dO1JDQ4M+anWthMv6DQsX2FHcdNNNVFRURA899JAUasd6DDunyH6w88IYIstjtZPoPeyytm7dKhlvo6+Biso6teuvvnZv2ioarijRqDIoaE+0n507d0qNoNW5bNSaSBPq/3j1W7zdCStWWlxAnYWyAHOpqKgI+yFJdKzx6mMuzc3NcccWrx2+n/kIuLoDguwHxzBFuMbRS+2EVHm8VzCOSZMmSS3avffeS6WlgZg18Z5L932ZksdkBxSSAbnnjgE1fDwVPPAKGSJmj7lDuteZ+7eOgKsMaPTo0fTee+/R6tWr5c5j5syZNGLECDla7EQgSIZMKB7dddddtNdee9H1119P2AnhF9PsGBevHTfvg/mQCAJmpnVSxoBuGiNCCK20b7FwUBERWQgdCyW+lywCrh7BDjnkEBozZgyNGzeOIDwcMGCAVLNj8DBMhC0PbITAXKLRf//7X/rkk0/k7SVLlujV0Pa0adP095l2oQn5D8gYC0iNMR07IKjhCzv3V0OI+soByaJCwzdsQMBVBoTxXnPNNXTZZZfJnQ6YkKJ+/fqRkaGochgsGsv333//sPeqXqa/KitoMyG02om4FRMI2jJpkxRhkW2GoX4EY2dUM3i4LEUEXGdAGC80XFa0XCnOLaMeD4XiCGkB1QB1S2ghl3GDdKfYYDjYWH0qLRkfwWKhxPeSRcBVGVCyg8yF59QRzGPIC6/mJY9lngLXHFKVFbQ1IbRQ0wv3EWZAarX41U4EEmJAsFyGe0Ska4SdA8rVthQDMpMBYc44hqlA8U5joKyglfA7Xn9wx2BfsHgo8f1kEEiIAUHj9Mtf/pL23ntv+t3vfkdffvllMn3m5TMhGVD7IxgACQQlc0cNH/KED8ngYi0K5EC8A4qFEN9LFoGEGBB8sxAa4w9/+AO9//770q3i8MMPp0ceeUQaqCU7iHx4Tmurl9P0GPLCG+ft7g7IWjRENT5owpgBKTT41U4EEmJA6Bj+W//7v/9Ly5cvl38///nPpfobu6JzzjlHersr/yc7B5rtbelC6OLwWEBqXoG40O5kR0VOeJD1I1ixYEBsiKjWil/tQyBhBqS6huHf559/Tl988QUhPk+3bt3I7/cTfLJOOukky06Rqr1cf1UyII+JNzzm7hFxoVFH8wccZJ3EQzEgs9AgZv3yEcwMFS6zA4GEGBCEz4jnc+GFF8qQGhMmTJBuEDAeXL9+vQyfsWbNGvrhhx/owQcftGN8OdOGkgFFxoNWE9RtgVxIUJi4DAhC6PgW6mou/MoIWEUgITsgGAtu3LiRIPeBD9bFF18s/bGMnfXs2VPeTyTkqvH5nL0OWkJHxoNW89UZkIiKWFDaRRU78qrvgCwYIsoBQAvGecEcWYt8bzQhBgR5z9VXX01HHnlkO9wgE8IxrFevXoSwq7HCrLZ7OA8KrMiAAINKmewkJP5WEYpDEI59VshbCC0Yy4CsYMV1EkMgoSPYc889127Ho7qDo+lbb70l38LrHWEymEIIhGRAoayoobuwAwqoxN1wx9CPYEXW1PCIisg7IONq8bVdCMTdASFoPFTuIMRoueqqq9qFz0CgMRy5+vTpY9e4cq6dkAwomh1QJzlnZaXsJAD6ESyKRi6ybxkXWmTtYGIE7EYgLgM666yz6MMPP9T7xc4GcZgVIdAXGA8MFLELYjJHIK4dUPA45CYDsqyGF0cwkJtpg8xR5NJcQyAuAxo4cCC9/vrrct6Iu/z0009LDViuAeH0fHAEw07C4zWH3CiEdnoscgckfM8g27FCKjMGsSDaClxcJwEEzL8NURqAHxhTcghACB1NA4YWQwzIeWPEQDREawJojC08KJkHRUyMgC0IxGRAu3fvpqeeeopOPPFEOv7442Xs5ViOqL/4xS8IOyam9gjgCBaTAZW4KwNSQu/2I21fEooJ1CxuWts1tW+FSxiB9gjEZUDIywU5DxgQjAtjpUJGskBmQO1BRgl2QAXF5how3PcEY/O44REvw7EGGR76jkcqKmJAE8YMKB5efN86AjEZ0D777EM7duzQWzMGlNcL+cISAlIG1CF6qFkVlMwdIbQIx1q5j6Vxo5KSAbEq3jJkXNEiAgnZAak2lbMp1PIIMg+fMKbYCARCoEbfAaUqA2r96QNqXflk7EEE7yIiopVgZKoxZkAKCX61G4GEGBCsneGGsWjRIul4euaZZ9LIkSPpiCOOoPHjx9s9tpxpTzJsYUkcSwbk8RZQYcc+1LRhCfnqtyQ896YvH6a2FQ9R/arXYj6L9NDIzqEYXszKwZvMgKygxHWSQSAhBgQjRNgAITc7jBOx+3n00UelgyrcLz7++ONkxpD7z8TIiGGcfJfjbheyojqq/fB2Y7Gla1/tV7Je7eKbYkYvVEaIZumBonWkGBCr4aMhxOXJImCZASFvF0JvPPPMM4TMFHC7qK6upokTJ8pUO8ceeyx99tlnyY4jt58TGVFBsXZAuN/hwAuppMfRVLfyeWreaj3aZOvONYJxiRg/ItRH2+4fadfnj6E5U9JEPjBQQlowEZAMxGFZJQz8z0YELDMgJP/DUULl7Hr77bfl8cvrDTQB7VinTgFVso3jy4mmZFJCMZNo8aDVJKFtrB6OMCYa1S6arIrjvrZsCzCrwkMnUUHFPrTz0/uprW6T6XNqB5TYESyg+WIhtCmkXJgCApYZEMJswNsddkGzZ8+m77//nuCmAab06quv0rJlyyRDSmEsufuoHo7V3A/MOPGSHkdRxUEXUdPGD6j++znGW1Gvm7cul/cKuh1JVSfdLXN+7fjwNtP6igEldgQLuN4wAzKF1NXCzZs307Zt2xzpE1mJv/32W0fajtaoZQaEX2fEfv7zn/8sA5IhpTKiH86bN0++v+6662Qojmgd5XU50jILihYPOhKbLifcRUhgWLvkZuF/FT8MRos8rnnI0/lAqhh4AZX0+hnVfT2Tmjcvi2xahPsIxoO26gmPcQsXEpDm46BkEog0/rvzzjvl99CJIaxdu5YOO+wwvekbb7yRvvvuO/29ExeWGRA6RwAyBKVHNox3331XhtyABgzasSeftKYCdmISmd6mCsXhtRgArLCiF3U6+gYhz1lHu5c9Gnd6LduWk7fT/oJplcm61Sc/IF9r/tX+GOeHrEiQt8RiKA5R1xP0GeOYQBK6nP3XTwQcNDKcqVOnUlubs1EQEmJAQB6xfsAlsSMCQSaEvOxMMRDQd0Dxj2CqlU5H/F4YC+4r5DkPCHnOT6q43StU9r76zVRYfah+r6THEVRx8CXU/NPHVPfdy3o5LlROMG9SOyC4YjC5iQBcnxB99PTTT6ebbropzBMB4g+IRM444wx5GoFcVhH8NiEqwYll1KhRhPDJOL6BkF4Lu5vhw4cTcv0tWLBAltfU1BB2WKApU6bIvtDnjBkzZCIKeSP4729/+xu99lpskw9j/WjXMS2hIx/C2fOee+6RhofQikn7FkMluG3gaMYUgUBQBhQtHnREbfkWnupdTrybtv3zUtrx4R3UbfTTZtWoWex+QAVVIQaE912OnyJtgmoWTKLdX0xFkSRffYCZWQ3FIR8SAckCD+fvEayl9nvaPn9CAIcU/3c99Ukq7mrtRxv596B9vu2226TZy/PPPy/TYmEIf/zjH2n+/PmSaSBUMqKVgjGMGTOGVqxYQYjlBdEI0mjhuwlbPaTWuvnmm2UMd5R9/fXXdNppp9Hq1aupsbGRXnzxRRnRFJEvwPjOP/98OuGEE+Sz48aNI7hb+Xw+uvXWW8nI8JKFJCEGhCPY4sWLJZOBKl7tglTnrAVTSIS/Ki1YtIwY4bVD7yoGnke7PntACKNfpeoRj5uGzwjIfwQDqh5ExnwahRU9qUowsB0f3kmttd+EGhVXhR33paIuA8LKYr3RZUAW5FGx2snmezh+RuKY7HzUkTze8/A0QPgb2NyBCYBRqC897sEGDzJY7GRA2BQ8/PDDkgHhPU4qYCIgHKWUsTB2OtBew4zmiiuukH6eOMkgu40iPFtQUEBDhw4lHM3gaD5z5ky6++67JdND/SFDhqjqSb9aZkBIwwPDw5deeol+9atfJd1hXj4YtANKxP1B4VS+389p59K7pYV0ed+Rqlh/bVEaMHEE82l6sbzoeNgEwl+qFJIB5e8RrKTbYOpzXeAIkyqeVp9ftWqV/JE/5phj9EeGDRsmryEwhtYKiiC1EcDOpGvXrnpdY4RSbA5QH4RTDJjRgQceSAMGDKBLLrlE31XpD0dcXHnllfKZP/3pT4RdGBiXHWRZBoTjFiY6ePBgO/rNrzZ0GVB0X7BogJT3Gy1vNa59x7QKDBYLKnsLoXIX0/t2FOo7INaC2QGn5TaQ7BMyIByPFK1bt05eqqQPH3zwgczBt337dpmxxpguXdnoqWfVa5cuXQgyoq1bt0rG89hjj9Ff//pXddv0FaIVMLiFCxfSP//5T6mQMq2YYKFlBtSxY0e5DZw1a1aCXXB1FY41niGiGVLF3Y8gb1lXalgzr91t2PS07VpNJXuFVKftKtlQoMcD4swYNqBpvQkwCngYTJs2TTIiaKhUfHbY5GFnBDkPjl5gDhdccAHdcsstcTvA7uWOO+4gtH/ppZfKXZCZtquiokKPhgFmdvnll9OkSZPo5JNPti0qquUjGGYFGRAGAMEVNF/l5eG/6BBccTwgk/VXO6AoWVFNntCLPB4vlfUZSfXfvkStO1dTUef++j11/Cru5jQDYkNEHXSXL1555RWZ8nzfffeVJxB1BMMwoJ3CdxJhcyorK6W8BjKaeAS5EI5Uffv2lRoxyJfwPjLcDmRO6A+CbdwH48IRTGnK4vVj5b5HHK0iJAfRH4MKPlZAMqTtQX74bKFdu3bJXw9YeTtF+GXa+NYV5FvzKu074UcqKI8eEyjaGOq+nU3b3r6CqoY9RJ2GXKdX2/XFX4TLxg2011mvUGv1CXJtevTood+368LXVEvrpu5N5cJXzX/4PYTdcIcO1k0KEh0H3H4gZMXnjSmAAATH2LGYHauQlQabgdLS0oTgQsRTCJpjrSVU9mgb4hccBRGYEMJqY2KKhDqNqJzQDoiznUagZ/Gt0nrEc0aN1lxZn1PFLQ9BDmRkQEoDhiNYq1EFFq2hJMuVDIja8lcInSR0tj0GjVU0UvKgaPejleOHJB4p5vTEE0/Qyy+/TL/97W9tYz7o27IMyDhQ/Koj/zs4ISTrCWyijM3kz7VKyyzcK5KhgrJqKul5NDWtXxyWGgdHMG9plTBY7J1Ms5afCcmAmAFZBi3HKkIjB4NG2B7ZSQkxIDAeqPA6d+4sQ3LA/WLp0qXynAjnVCZzBOQOqKBMV5ea14pdWtZ3lEyPDCYEQmiMFmHfU+ywABp9IVia+OdadtTGLx+hpoWXoGumDEHg8ccfl8aHOLLZSQkxIAigIHWHWbeyeIatAWyEjjvuOCmJt3NwOdOWEEIne/xSGJT3O01eKm1YS83XyBRIJd0OV1UcfcUxzC1v+Laf/kX+zR+QXwTyZ8ptBCwzIByzkBUDgma8QoIOAgP65JNPpHCMIyJKSNr/E4aIVj3h2z8cKCneawh5hQBb2QPBARXkxg4I/eAY5hYD8jftQJe65758w/9yEgHLDAgqurq6OrnTiUQC6ZoRK/qjjz6KvMXvBQI4giG8RioELUS5OIa17VpDrTtW6RETi/dyaQckoiK6xYC0lgAD8ovwtEy5jYBlBgT1bllZmZ6m2QgLvGwRqN5o+m28n/fXNjAgYAg5EKhhzTsEATSYWiI+XfLhJP8hO6pb8YC05p1ylG7kSEsSDn7MJgQsq+FhfwBvW3jSYjcE028IpBAjGpaa8EEZPTrgNmDT2HKnGRtkQABDquOFMLhhzT+pZdsKKu42SAi2Lf+GpISnPIK54Iwqw4X4W+VYVeyilAbOD2c0ApYZEGZx//33y2PY7beL7A1B+0V468KhDWFZoR1jCkdAE4JiEYQn5SMYWi0o7SLU8cdQ07r3ZSdOW0AbZwIhtArnaiy3+9ovjB4VqQD66j2/5h4CCTEgHMGQfgexSb766ivpJ4KwHEceeaStxkm5BDMSEoJS1YIpTMr7jpaBxvC+xCX5j+xbasGcjwcEq2tFbmSJVX3xa3oQsMyAIOdBGFb4gcEIEWby/fv3lzZAdpllpwcCZ3tVquRUhdBqlGXCO37HR3fIt25pwNAZAqS5EZJVacDQp4reiGum3ETAEgOCCfa1115L8DmBaTZ8UuCWgVABiLaGewhYb+ankpuwWZ+VzNclqtu1A8Kxq6BDD/I1bKPiamtR9ayPNkZNKYR23hLaeARz48gXY8Z8ywUE4kow58yZIwOQHXXUUfLYBVX8+vXrZfhGWD/DRR8W0XabaLswd1e6gMoc5BXxne0gqOOrTr6fupwwRciVSuxo0lIb0h9MyLM0kdbZSfI1ho5gKoOHk/1x2+lFIO4OCO79iEmCANSQASmCBgzCZ7jqw1EOTAhxYhEWgCmEQGvQYLBQhEy1iyoGnm9XU5bbUVERyeGgZLwDsrwkOVEx5g4IQYoQYQ3qdyPziZw5QjrCbf+bb8JjD0fWy8f3ymLZmLUiG3HQPeKFRs9J8gWtoNEHH8GcRDoz2o7JgBCDBOp2BEOKRep+ZECjWM/kyz1pMFjRJ6Fc7JmIDQwRJfmdlQP5m2r06WtsCa1jkasXMRkQgkKBVEyQaCCoyIgq6HW0evlWDpWyr24Debq4KCx2CGR9B+T4ESzghoFpsCW0Q4uZQc3GlQFl0FizbigqZKq3y8FZN/bIASsZkNP+YNIOSIau9QhvePYFi1yHXHtviQFNnDhRhuGMNnllFR3tfr6WI2MFKKd2QA7LgCCE9gqLb83XxjKgPPjixGRAJSUlMhMGcEAwsliEwNbGnESx6ubLvZzaAQlLaEk+Z2VAEEJ7yrqT1toownHszpePSt7OMyYDgrXzkiVLbAcHsqIdO3ZYCjqOegj3gRQhkYTg5ZA/Zaoldsu2L0UMn+7kKe0WOfSse6/LgFzYARV2GigiYHvJXx+yCco6wHjAlhCIyYAstZBgJfiSwbixsLBQ2g8hwqJZUG3kqYZxI4wekb3irLPOouuvv16GNQVTgn0S8mHDVODEE0+U9xIciqPV4YIBI8TSfU91tB+3GlcMyMmQHFLtLowdPeIIRsLgUfnRuTVH7sd9BGJqwewezooVK2ju3Lk0ffp0mj17tvQlmzp1qmk3CPMBxoREiMh/hGBniD8Nev311+WO6MUXX5RpYhcsWEArV640bSddhS3b/yO/RG76azk5V93q2sEdkHJE9RZ3EVbeFTIAGmJfM+UuAq7ugBYvXkzDhw/Xj15jx46la665RsYYgouBkRDgbMqUKfJ41atXLxmRH4zmZz/7mcxPhGRseAYGkjgqImo/kiXGIviuGcnvD7gVRJYb6yR73bjpc/loQdWh8hUyNCf6UePDXKAMcKoPPxUFuhIyIKfm0rJna6CPEhHWpXmPvG5u2EHIChKNYJHPPojR0Mn8clcZEAwVhwwZoqOCKIuQB+GIZYwlhGPVtm3byJhkD9fLlwfiIINxITsHvmxwkMUHcNiwYXq7Zhf4ciKImhlFKzera7Wsdf0nsmp9kTBCFFdIn4s/p8mJuWDMvobgTkTsgGD1jj+7ybd1rWzSVyDkfUUBmV/NlnXkrYieOxOfm1hW+naPkduzFwFXGZDypldTUB8cZNUwMiDIeMAwjAaQEDajHgjyIdzfunWr/EM7Vn75O3XqpLrW2wEDjCwPq5Tkm5o935GnuJI69jhYBnGDRjHRzJWJdA3mBgycmAvG0VTZmXaJV8iAMA/Mx25q2iZ+jESjhWLH09YcEEBXiGSfRRHrZuwXCgqm7EXAVQaETIzGXYC6jlTfq4yNuK++tPjFVfUggEYIkJEjR0rksRuCUyzCxUYjGdRdMDEj4QsLBqQsuY33UrlGFESfyNlV0uNo2TYiCEBTZ3c/xjFiHtg5OtZHeSfJHIR5smNzadMCu6qC8q7kq98kp1fibaXSiHUzzpuvsxsBV4XQkNUY/cVwbbaFxq8ryiPrIoc7dkc4niEKo6KhQ4dmlCNsa+23UoCaKwJo4Ky0YE56wytPeG+xkAEVBaIqcFAy9SnPzVdXGRCC1r/33ntSiIzdzcyZM/UEh3gPLRd+yUGo+8ILL0hZw9q1a2n+/Pl0yimnyGBoEEBDmwbCc/PmzaPBgwfL95nwT1lA5xIDIt0Z1TlveKUF8wghtEe6Y8Ajno0RM+Ez7dQYXGVA0FKNGTOGxo0bRxAk42gyfvx4OTdEWJw8eTLBuBB06aWXSpnPBRdcIG18zjzzTJl7DPfuuusuyZBw7+yzz5byiF//+te4lRGkLKBdjdns8MwRklWSg5bQKhyrtAMq6iC748D0Di9smpt3VQaEuULtftlll8mdjjF4Wb9+/cKsriFMfeKJJyRDghU0DBcVIRA+bIMg1MZxzSisVnXS+SoZkNgxFFUdSP7oCpx0DjHxvoOuGJoLdkAecQTz6EewgOIh8QHzE9mAQOhb7eJowTSsalGM2rHIIZpZUEfWcfs9tHPNIgpicddDyeMV8MbxoXN7fMn254oMSIRj9RR3DOCmjmCtzICSXbNseM7VI1g2AJLqGNt2rZVOlCUieHwuUYgBOWeZDCE0cp+BVBB/f9AgMZew5LmEEGAGFMLClis4oILcytluy6AtNKIzIIePYN7SqsBogoaIKquIhSFylSxEgBmQzYvWLHK2g3JKAybmo3zBNAdDskIIXVAWYECeIANiNbz8OOXsP2ZANi9tiwxC5hEyIPuyYNg8xKSa03dADoVkleFXNR95S4I7oIKA0Sir4ZNarqx5iBmQzUuFLBhFVQeQtyjc6trmblxvzlPgrBpe2QAhGiLI4y0Qu65yIU/jsKyuL7aLHTIDshFsX/0W4UKwmYq7HW5jq5nRFBiCYAuwDHRkQMoK2uj57i3pyGFZHUE7cxplBmTjWtR9P0e2VtLjCBtbzZymZGB6hxiQyoiqdkCYNeRAfATLnPV3YiTMgGxCFbGMdy69m7xlXanykMtsajWzmsExzKmsGP6g97uuBRNT94poAiyEzqzPgN2jSYshot2TyIT2dn78J8IxonrEk0KQGh72IxPGZ8sY4A/mlBA6mBG1QKjhVfoDMCDOD2/LymVsI7wDsmFpWmq+pd3L/yo1X5WDrrShxcxsQmrCHDuC1chJG49gkgH5mkR4aMWSMhMXHlXyCDADSh47/cnaf92ISF1UNexBESY2dyGVMiCHnFGVI6pRCI2AbiCWA+kftZy7yN1vi0tL1bBmHjX++C6V7382lfU+yaVe09MN8sM75YyqGFDkDggz5WNYetbbjV6ZAaWAsuYTMamx+xFfzKqT7k2hpex4VB7BHJIB+ZqCR7CSgB0QEMERDCTT9cgr/pdrCDADSmFFdy+fJnN/dRp6vYhb3DeFlrLjUWmM6JArBnZAEN4H7I0CeHiKA4HpmQFlx+cjmVEyA0oGNfGMr3G7VLsXiMynnY/+Q5KtZNdjTu6AoEE0Hr+AjFePCcTW0Nn1SbE+WmZA1rEKq1n39YsiPrtIJ3TcbeKoEPilDquQi2+ghtfaZEYSu6cHQ0RvaXVYs7CEBrFHfBgsOfWGGVCSy9mw9h1hqltAHQacm2QL2fdYyCG1ydbBI4ibv1l4wgf9wFTjXt0jnoOSKUxy7ZUZUBIr6m+tp6aNH1BJr2PFl0ZkcMgTkmp4MVe788NjJ4lc8EYraEAaUsMzA8rVjxgzoCRWtmndImkRXN53VBJPZ+8jUMNLstkWKKSCD4biCEKktGCshs/ez0y8kTMDioeQyf2GtfNkaVm/00zu5m6ROoLZ7Q+me8KraIhBCBUDYi1Y7n6mmAElsbaNa+ZTQYeeVNItc3KRJTGNhB9RMYHsZkCRsYDUwFgNr5DI3VdmQAmubUvNN9S2Zx2V5dnxCzDpRzCb/cH0HVAwHKtaEq/IkAFij3iFSO69MgNKcE0bof0SVN5vdIJP5kB1lRvMLRmQCkzP2VFz4MNjPgVmQOa4RC2F7xfU72X7johaJ1dvhLRg9qbm0d0wImRAnoIimZOeZUC5+okSxqa5OzX7Z4ajQNPGj6i013HCbSBwPLC/l8xtUT+CObQDQiygSEKiQn8rW0JH4pIr75kBJbCSjesWCoFEK5Xl4/FL4BTSgtkbF9osHKtaFliZy4wZqoBfcwoBZkAJLGdey38ETk5pwZQQOtIXDEsjg5LxDiiBT2l2VWUGlMB6NUD9XrG3zPuewGM5U9XJI5i3pLNpMDdowlgGlDMfoXYTYQbUDhLzgpbtK8lXt4HyzfrZiIZjRzARC8hs94O+YQukCdcX+Isx5R4CzIAsrqnUfom6+Wb9bIRHacFIxGm2k2QsoAhPeNW+CsnB7hgKkdx6ZQZkcT2l/MdbKNTvwy0+kYPVgr5gdjqjSk945ISP8IRX6HlLglERW9khVWGSS6/MgCysJrQwTT99TKV7H6+HCbXwWM5VCR3B7LMD8jfvFDhpIp9aeCwgBZ6Hg5IpKHLyNe/zggXkC35TAaha8YD6vU24X+Sh9bMCQbwqBtT41dO08ce5+h2PMMxEVMjy/cboZVYvlCd81B1QMNibxtbQViHNqnp5vQNq+ub/UfNrQ6l50ycxF03Jf8rzzPs9EpTCTv3IU9lPhO5po7bd6/W/5s3/pp3/fiiyuqX3fhWM3sQIEQ2EPOLZGNESoFlWKa93QAWd9pOGhfBuL+31s6hL17h2PhVW7kvF1QdFrZMPNwpE2umSMQuoY8eO1KFDB33Km//xc8IuEempo+1k9MoRF3gGFBmMTFULOaSyDEhhkkuveb0DKux+DFFhOan4PmYL27xtBfnqNwntV34FHzPDIlqZPJqKiIaNP74XrUrUcmWEGI1xhUJy7I7aBt/IXgTymgHBsM7b/Xhq2foltdVvNl3FRjifCirvm1/Bx0zBiFKojqbYKSZKITeM9n5gaEsdwTThh8eUewjkNQPCcnp7DpOr2rj2Xfka+a8BXyrBqEr3DdSLvM/viYq67E+QDwGrRA0G9R1QRCwghatiQGwNrRDJrde8Z0AFPU+WK6r8vIzL62vaSc0/LRXq9xNEjqqQzMNYh68DCGAX5G/YKnaTXyQEidKCRZMBcWD6hODMusp5z4A8HXpRUfXBUn6h+X1hC9i0bgFSQIjjV36r38NAifJGmSgojWGUau2KQ+FYoxzBdDsgFkK3Ay8HCvKeAWEN5a+3SA3TvGlp2JKqL1M+u1+EARLjTWnvk6S3fKJyoMARzCPTMps1ryyhNfaIN4Mn68uYAYklDP16B8KtYlUhy4BcqLBjHyquOiDrF9rpCXgLywhMqHnTpyJtdY3l7lA3mic8GlG+YBwTyDKkWVWRGZBYLtgAQdZglANBM+Zr2JLXzqeJfpID2jDBuC2q4/2tDdSy/T9U1PXgqF15CksEFyoUceD4CBYVpCy+wQxILB5iD5ftewq1CJuftrqf5HIqZsTyH+ufbrOdZKynm9YvspTgEcaIrIaPhWT23mMGFFy7kC1LQB3fsOYd6ftU2jugJcveJXZv5EWd+1Nh5/3FDuhdcYT1x+1Yl7HFEfLLsKzsCxYXz2yswAwouGplfUfKK3wp4B7QvPlTKt3nRCGDKM/GdU3bmJGuyN+4nVq2LIs7BuwyCzr0oJK9DotZFx7xnBssJkRZe5MZUHDpCmWo1UHCp2kBNa55W0ih/Sz/SeJjXRa0GMcOMha11HwrnFmtJXhEBhI2RIyFZvbeYwZkWDtku0DkvR1L75GlLP8xgGPxskzsGj1CIxaPAekyNgsRBrwiQSGr4S0uQJZVYwZkWDDFcNp2/iBcC/pLFwPDbb60gAC0VqW9h8kjmK9hW9QnpPxHJng8JWoddUO6Y4gdqV/EhmbKLQSYARnWs6TXsUIdH0g4mJeplw1YpHIZwA7qeHP/ukCCxw+DCR47xe0q5BHPqvi4YGVZBWZAhgXzIOZzn0DKZbZ+NgCT4KWSA9Wves30ycZ17wcTPFoLcaJiArEq3hTOrC7M64BkZiuH0KIIPga7IKbkECjq1EdEDxhODT/MFamsxU5HxNI2UuPaYIgTC/IfPBfyiOeYQEYcc+E6LTuglpYW2rJliyX8duzYQXV10WPB4F5NjXXT/3idQiVcffK9hN0QU/IIVJ98v7Dw9FLNosntQnQ0CBeXRBI8ho5g0T8HyY+Un0wnAq4zoGeffZbOPfdcmjBhAl199dVUW1trOv/GxkaaNGmSrHP22WfTY4891u6D7PP56IYbbqC///3vpm1wYfoQKO56KFUOulqG56j7eoY+kJbtX5Nvz/qEEjyGjmAsA9KBzJELVxnQihUraO7cuTR9+nSaPXs29e/fn6ZOnWoK5TPPPENVVVU0a9YsmjFjBn300Ue0dGm4t/rzzz9PP/zwg+nzXJh+BLocd5v0ct/xwW26HY8KfwuTB6sES2iQn62hrUKWNfVcZUCLFy+m4cOHU/fu3amkpITGjh1LCxcubLezAXqLFi2i8847j4qLi6lXr140atQoWrBAxOcJ0sqVK2WdM888UxXxa4YhgCD2nY+9RTr17vxUHMkENcJAUSZ4PMXyaHWPeA7LahmzbKnoqqBj06ZNNGTIEB2bHj16EORBu3btos6dO+vlbW1ttG3bNsJ9Rbhevny5fIvj2Z///Ge69dZb6f3335dtqHrRXhFeY/fucCEm+gahf6dIhShtamoiHBmdIswFfTk5F78/4N8F/LFGVkjrN5a8X/yVdi17nLRepwuh9EeEZAB7GkVbjea4Yy7oS82ltTXwO9mwZxtpEWtVXl5ORUVFVobCdTIQAVcZEOQ9xnQuZWVlEpI9e/aEMSAInvFlMtbFBw31QI8//jiNHDmSBg4cKBmQLLTwr6GhwbRWtHLTykkWtra2Ev6cpkycS8HhN5N/8dW0e/5FwsVFMK7uJ5GVcao6fl/gY9pSX0taxBpih8wMyOlPlXPtu8qAkE9KfagwJXXdtWvXsBminrpfWloqr+vr6wn1IAv69NNP6bbbbqOvvvqKtm/fLttZtWoVDRgwIKwd4xuPx0M9e/Y0FslfWIwhsjysUopvsOvZunUrVVZWUkVFQJaRYpOmj+/cuZOwyzLuGk0rplCo5hKZFyxukz0vos0/ztINE7sPFkfrruFrYWwDc2lubpZHdZS3ltbTBvHaQYQGqo5YQ+NzfJ19CLgqA4LsB8cwRbjG0UvthFQ55EMoj6wLRoEvc6dOnaRW7OGHH5bMCMJtCKSZMheBKqmWL6CCyt6C+UQPQGY2g5AanrVgZvhkc5mrO6DRo0fTLbfcQmeccYb8pZ45cyaNGBGwPMZOBIxk6NChUvCMui+88IKsD3nQ/Pnz5fXhhx9O55xzjo75tGnT5NFs8uTJehlfZB4CxdUH0l5nvhQ19nOsESs1PHvEx0IpO++5ugM65JBDaMyYMTRu3DipAYMR4fjx4yVyMEwEE8H2G3TppZdKxnLBBRfQ9ddfT9B2gfkwZS8CHfb/OZWJuNGJkozJJIwaEamAKbcQ8Ahhr+b2lHC+h6YDcpF4BIYE2Ulhof2bNWhZWAYUbwVC95OWAYWasHQVKQPCQz8+1YOKqg6iXhcKPzKmnEHA/m+1BWgg48GfFTKq563U5zq5iUAgKiLvgHJtdV09guUaeDwf9xCANTQfwdzD262emAG5hTT3kxIC8IhnIXRKEGbkw8yAMnJZeFCRCCBvG+cGi0Ql+98zA8r+NcyLGciYQP428rc15cV882WSaRFC5wu4PE/7ECjf70wqEjnHhC+HfY1yS2lHgBlQ2peAB2AFgcqDL7FSjetkGQJ8BMuyBePhMgK5hAAzoFxaTZ4LI5BlCDADyrIF4+EyArmEADOgXFpNngsjkGUIMAPKsgXj4TICuYQAM6BcWk2eCyOQZQgwA8qyBePhMgK5hAAzoFxaTZ4LI5BlCDADyrIF4+EyArmEQFoCkmUKgCoWGwLWO0lu9ONmH8DKSczcmIuT681tW0cgrxmQdZi4JiPACDiBAB/BnECV22QEGAFLCDADsgQTV2IEGAEnEGAG5ASq3CYjwAhYQoAZkCWYuBIjwAg4gQAzICdQ5TYZAUbAEgJ5zYB27NhBSI7oFCGPFnKgGf+UitmOPv1+P61bt860qZ9++ona2tpM7yVauGHDhnZtGeeE61T7QmLKaNjYOZdE5871nUUgLyMiNjY20h//+Edav349ITnhWWedJbOv2m3bgtTTzzzzTNgKPvfcc9S/f/+wsmTfPP300zKd9VNPPaU3sXz5crr77rvle8ztzjvvpGOPPVa/n+jFypUraeLEifTyyy9T165d5eNgehdffHFYU5dffrnMeBtWaOHNvHnz6Pnnn5eJJ5Gs8pe//CWdf/758km752JhOFzFbQTEr07e0eOPP67dcccdmvjl1jZu3KiJ9M/aRx99ZDsO//d//6fNmjVLa2pq0v/EriXlfnbv3q3dc8892sknn6xde+21envo51e/+pX23nvvybKFCxdqZ5xxhuxbr2TxAuN8/fXX5fMnnHCCtm3bNv3JBQsWyH6N82ptbdXvW70QPwSy/W+++UY+grU49dRTte3bt8sx2zUXq+Pheu4jkJdHsEWLFtF5551HxcXF1KtXLxo1ahSJL5XtvP/777+nQw45hAoKCmQmWGSDtWOXhZ2P+KjIXZtx0P/9739JMAIaMWKELB4+fDh16dKF/v3vfxurWbpetmwZvfnmm3Tfffe1q79q1So68MAD5ZzU3JJJnS0YjdxJoS0Q1qJ79+5yvHbOpd0EuCBjEMi7IxhkFeLXnHr06KEvAq6x3beTkHMesgscw1asWCGbHjduHJ177rkpd/Pb3/5Wfvnnz58f1tbmzZvlF9hYiC/01q1bjUWWrgcNGkTTp083le2AAdXX19PYsWMJfQ4bNowmT55M5eXlltpWlfbZZx+66KKL1Fv6+uuvSeyC6NBDD6Vvv/3WtrnoHfBFxiGQdzsgCJ6xe+jQoYO+GPji7Nljb97x2tpaGjJkiPyCvfHGG/T73/+eHnnkEfriiy/0fpO9wE7KjGpqaqiioiLsFuaZzNyi9YHGO3XqRCeeeCJBnjVt2jTCbgWvqRAE3eLIShMmTKC9996b7JxLKuPiZ51FIO92QB07dpSIYodSWloqr/FrrgSsdsGNX3cha9KbGzlyJL322mv0ySefSMak37DxAnPDXIzkxNxuvfVWvYuBAwdKIf4rr7yilyV6AUE3lAKXXXaZLoB2ay6JjpXr24tA3u2A8MveuXNn2rRpk44krnv27Km/t+Pixx9/pLfeeqtdU5BzOEU4buFIZCS754YjrBCs086dO/VuINdKdl6QNeH4hmOl0n6hYTfmok+AL9KGQN4xICA9evRoeuGFF+RuYe3atQRZyimnnGLrIoDJPfHEE7r8B0cvyDhOOukkW/sxNjZ48GAp8IbwGMdMqLhhi3TwwQcbq6V0DWEz5gLZFvqAIHnu3LlJ4Ydnb775ZvrNb35DxxxzjGRqYGywK3JjLikBwQ/bgkBehuOAfQzkDatXr5ZfWNiewI7FbgIDwG4BxyD8QQ6Eo5hdBMYpVOVktAMCc7jtttuktg3HGOwuDjvssKS7xI4H2jQcH9Uxdc2aNbJP7PIg68KcMDdoFROhv/3tb9IGKPIZ7IaECl4yOjvnEtkPv08/AnnJgBTs+LWF0DYZFbJqw8orBN/YEdmhgrfSH3Ym6LOqqspK9aTrwIq8qKhIauSSbiTOg27NJc4w+LZDCOQ1A3IIU26WEWAELCKQlzIgi9hwNUaAEXAYAWZADgPMzTMCjEB0BJgBRceG7zACjIDDCDADchjgdDcPK+hoITvcGlsmjMGtuXI/iSHADCgxvGTtK6+8Umq0oNWK9vfQQw/JunAGNXPoTKLbpB65/vrr6V//+pelZxFfaOrUqSS83C3Vt1oJtkhwkIXKnokRMCLAWjAjGhavly5dSrCFUfQ///M/1KdPH5o0aZIqku4W8PKGTYsIiSH/9JsuXfznP/+hK664QnqXWzEBgM0SHEyhXjf6ytkx3Mcee0zGX3rwwQftaI7byBEEmAHZsJDwhzr88MNp9uzZNrRmXxNjxoyR3vdXX321pUZffPFFGR7DCQYE3zv4x8FQEsyaiREAAnwEc/hzACtieI2D7rrrLmmB/eyzz0pXA/hPIdogjO3+8pe/yBg7CEUBr3kjwYr6uuuuo35m6YslAAAFcElEQVT9+lG3bt3onHPOiSvXWbx4Mb3zzjvSUVS1JQKZEY6PCD8CI0WMDc6xILhvwDocBE/3GTNmyGv8+/vf/05Dhw6lyspKOvroo8N83LAbPPLII+Uu67jjjpPW0hdeeGE7r39EHIAbCiybmRgBHQHx4WdKEYEDDjhARlU0a0ZYQGv33nuvvCV2Ipr48muoL/zEtPHjx2tiITQhH9HELkoTjEe75pprZJnYKchnEJlQhFTVhBuEdsstt2jC61xDhMK99tpLEzIVsy5l2Y033iifM1YQ3uZa7969tSeffFJGahRxfDThnCsjEIrgaZoIhSH7FqE1NHF8k4+KI5Mmgo7JSItz5szRhExJE8c57R//+Ie8L9xN5DMYj5B7aYiWKHztZD8ipIaxe00EUpPzCCvkN3mNAH59mVJEIBEGBIYjnFL1HsWuRn6BRUwdvQxMQuyW5HtxrJP3hcOnfl/siDSxo5AMSS+MuBBxrjURtzmsVBx9NOH8qZchBCqY0ldffSXLhIOu7EscweR74aqiidg/mvCT05/BhfBa1wYMGCDLFAMSsaf1Ogi1CoYEJmgkMCfMHyFXmRgBIJB38YD0rV+aLsQXkw466CC9d0QehD/Vfvvtp5chIBeiDoJwlEIAMBy9ELpCEYKdffjhh+ptu1dEFMRRzUhHHHEEPfzwwwR5zNlnn01iJ6UfD4311PWXX34pg/YfddRRYX3Dux7xf+DNrsgYpB5xlk477TT6/PPP1W35inmBRAxo2bd8w//yGgFmQC4vv/oSqm4RU7lv377qrXxFmSKEC4H3PsJVRFLkc+o+1Onw9EdMHSMhQwfCwiJMyKOPPkrV1dUyFMbtt99OXm97cSD6BkGTZ0bqPu5BwGwk9B2p/ldhcBFBEcyPiRFo/6ljTBxFwMhcrHQEL3owGmimVFgP9Yr4QmYEZoLAa5HByWCTJOQ4MkY0hMxI1zNlypSwyI3G9lAftGTJknZ9YwwQTCuKDPsKm59IbZcaT6Kxo1Uf/Jp7CDADyvA1RVYN7DTAbPDFxV9ZWZm0OUI8nWiE3QayciiCcSECwCM+NTRgl1xyidRmIUfZZ599JqspWyHsoEDqqAgNmeobr8gR9utf/1pm4JAVxb+PP/5YXUqt3gcffCBNE/RCcaHGo3ZCxnt8nZ8IMAPK8HVHkHbsRGDkiABkCNaOZINQjUPtHY2wu1FfeNSBXAa7optuukkyC+yowIzA3NRxSAW0FxouaTQoBM0yTCr6QtAzxBh69913ZTogHLnQnqLf/e53cncFVT/6QKZTmA4YCeNB0DLIr5gYASDADCjDPwfYreBLj2yuCCULYTRiTYMhwP4mGsEI8YcffpACZ1UHjAu7Glhmw6YHguMbbrhBZqJAHdj/wKAS1tPKfQQ5yNAWGCDGgsiRsPMxBqbHs8gui10VjowY36uvvkow0DQS0hPBFgh9MzECEgFWBmYPArD7EUHmLQ0YWUuh4kcW2EgSYVY1IaTWhI9W5C35Xux0tMhMp8gii2dgl2QkpYYXrikym6lIr2O8rV8js6o4Ompvv/22XsYXjADvgLLohwhHMavyExyPHnjgAal2R1xnI0EQDqtqM80X6mEXExmmFkcnPKPkRMb21DX6jNTyqXvQvMHyGup5JkZAIcAMSCGRg68Itg9NVCo5u+yABXZHOMqpCAF2tMlt5AYC7IyaG+sYdRawB0LWUafSAUGYjcgA8PyHQaUZIUW1sLamUaNGmd3msjxGgBlQHi8+T50RSDcCfARL9wpw/4xAHiPADCiPF5+nzgikGwFmQOleAe6fEchjBJgB5fHi89QZgXQjwAwo3SvA/TMCeYwAM6A8XnyeOiOQbgT+Pxvh3x2TJ1hIAAAAAElFTkSuQmCC" /><!-- --></p>
+<p>Snapshot measures count a connected pair once within a window
+regardless of how long or how often it is connected.
+<code>temporal_density</code> instead measures the occupied proportion
+of eligible pair-time. <code>onset_intensity</code> divides the number
+of spell onsets by eligible pair-time, giving a rate of formation per
+unit of relational opportunity. For this fixed population, eligible
+pair-time is <span class="math inline">\(n(n-1)\)</span> multiplied by
+observed duration.</p>
+<div class="sourceCode" id="cb47"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" tabindex="-1"></a>integrated <span class="ot">&lt;-</span> <span class="fu">metrics</span>(school, <span class="at">measure =</span> <span class="fu">c</span>(<span class="st">&quot;temporal_density&quot;</span>, <span class="st">&quot;onset_intensity&quot;</span>),</span>
+<span id="cb47-2"><a href="#cb47-2" tabindex="-1"></a>                      <span class="at">step =</span> <span class="dv">7</span>, <span class="at">window =</span> <span class="dv">7</span>)</span>
+<span id="cb47-3"><a href="#cb47-3" tabindex="-1"></a>integrated</span>
+<span id="cb47-4"><a href="#cb47-4" tabindex="-1"></a><span class="co">#&gt; # Graph structure (graph-level)</span></span>
+<span id="cb47-5"><a href="#cb47-5" tabindex="-1"></a><span class="co">#&gt; # 4 time points, 7 per bin | time in step</span></span>
+<span id="cb47-6"><a href="#cb47-6" tabindex="-1"></a><span class="co">#&gt; # measures: temporal_density, onset_intensity</span></span>
+<span id="cb47-7"><a href="#cb47-7" tabindex="-1"></a><span class="co">#&gt;  time          measure      value</span></span>
+<span id="cb47-8"><a href="#cb47-8" tabindex="-1"></a><span class="co">#&gt;     0 temporal_density 0.02428571</span></span>
+<span id="cb47-9"><a href="#cb47-9" tabindex="-1"></a><span class="co">#&gt;     0  onset_intensity 0.06043956</span></span>
+<span id="cb47-10"><a href="#cb47-10" tabindex="-1"></a><span class="co">#&gt;     7 temporal_density 0.03860283</span></span>
+<span id="cb47-11"><a href="#cb47-11" tabindex="-1"></a><span class="co">#&gt;     7  onset_intensity 0.08398744</span></span>
+<span id="cb47-12"><a href="#cb47-12" tabindex="-1"></a><span class="co">#&gt;    14 temporal_density 0.02352433</span></span>
+<span id="cb47-13"><a href="#cb47-13" tabindex="-1"></a><span class="co">#&gt;    14  onset_intensity 0.04395604</span></span>
+<span id="cb47-14"><a href="#cb47-14" tabindex="-1"></a><span class="co">#&gt;    21 temporal_density 0.01806847</span></span>
+<span id="cb47-15"><a href="#cb47-15" tabindex="-1"></a><span class="co">#&gt;    21  onset_intensity 0.00000000</span></span></code></pre></div>
+<p>Each complete week contains <span class="math inline">\(182 \times 7
+= 1274\)</span> eligible pair-days. Onset intensities of 0.0604, 0.0840,
+and 0.0440 correspond to 77, 107, and 56 spell onsets, respectively. The
+final partial bin contains no onsets.</p>
+<p>Temporal density is highest in the second week at 0.0386,
+corresponding to 49.2 occupied pair-days. It decreases to 0.0181 in the
+final partial bin. These values account for connection duration, whereas
+snapshot density records whether a connection occurred at any point in a
+bin.</p>
+<p><code>snapshots()</code> lists the connections contributing to each
+snapshot. Supplying <code>at</code> selects a measurement time; omitting
+it returns the measurement grid.</p>
+<div class="sourceCode" id="cb48"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1" tabindex="-1"></a>at_five <span class="ot">&lt;-</span> <span class="fu">snapshots</span>(school, <span class="at">at =</span> <span class="dv">5</span>)</span>
+<span id="cb48-2"><a href="#cb48-2" tabindex="-1"></a>at_five</span>
+<span id="cb48-3"><a href="#cb48-3" tabindex="-1"></a><span class="co">#&gt; # Snapshot edges | 1 bin | 16 tie rows | time in step</span></span>
+<span id="cb48-4"><a href="#cb48-4" tabindex="-1"></a><span class="co">#&gt;    time from   to weight n_spells</span></span>
+<span id="cb48-5"><a href="#cb48-5" tabindex="-1"></a><span class="co">#&gt; 1     5 Kira  Leo      1        1</span></span>
+<span id="cb48-6"><a href="#cb48-6" tabindex="-1"></a><span class="co">#&gt; 2     5 Kira Gita      1        1</span></span>
+<span id="cb48-7"><a href="#cb48-7" tabindex="-1"></a><span class="co">#&gt; 3     5  Leo Cara      1        1</span></span>
+<span id="cb48-8"><a href="#cb48-8" tabindex="-1"></a><span class="co">#&gt; 4     5  Leo Finn      1        1</span></span>
+<span id="cb48-9"><a href="#cb48-9" tabindex="-1"></a><span class="co">#&gt; 5     5 Mira  Ana      1        1</span></span>
+<span id="cb48-10"><a href="#cb48-10" tabindex="-1"></a><span class="co">#&gt; 6     5 Nils  Ben      1        1</span></span>
+<span id="cb48-11"><a href="#cb48-11" tabindex="-1"></a><span class="co">#&gt; 7     5 Nils  Eve      1        1</span></span>
+<span id="cb48-12"><a href="#cb48-12" tabindex="-1"></a><span class="co">#&gt; 8     5  Ben  Eve      1        1</span></span>
+<span id="cb48-13"><a href="#cb48-13" tabindex="-1"></a><span class="co">#&gt; 9     5  Ben Finn      1        1</span></span>
+<span id="cb48-14"><a href="#cb48-14" tabindex="-1"></a><span class="co">#&gt; 10    5 Cara Kira      1        1</span></span>
+<span id="cb48-15"><a href="#cb48-15" tabindex="-1"></a><span class="co">#&gt; # 6 more rows. summary() counts them by bin.</span></span></code></pre></div>
+<p>At day 5, the result contains sixteen connected pairs, matching the
+<code>edges</code> measure for that bin. Each pair has a weight and a
+count of contributing spells.</p>
+<p><code>events()</code> counts spell onsets and terminations within
+each bin.</p>
+<div class="sourceCode" id="cb49"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb49-1"><a href="#cb49-1" tabindex="-1"></a>changes <span class="ot">&lt;-</span> <span class="fu">events</span>(school)</span>
+<span id="cb49-2"><a href="#cb49-2" tabindex="-1"></a><span class="fu">head</span>(changes, <span class="dv">6</span>)</span>
+<span id="cb49-3"><a href="#cb49-3" tabindex="-1"></a><span class="co">#&gt; # Edge dynamics (graph-level)</span></span>
+<span id="cb49-4"><a href="#cb49-4" tabindex="-1"></a><span class="co">#&gt; # 22 time points, 1 per bin | time in step</span></span>
+<span id="cb49-5"><a href="#cb49-5" tabindex="-1"></a><span class="co">#&gt; # measures: formation, dissolution</span></span>
+<span id="cb49-6"><a href="#cb49-6" tabindex="-1"></a><span class="co">#&gt; # first 6 of 44 rows</span></span>
+<span id="cb49-7"><a href="#cb49-7" tabindex="-1"></a><span class="co">#&gt;  time     measure value</span></span>
+<span id="cb49-8"><a href="#cb49-8" tabindex="-1"></a><span class="co">#&gt;     0   formation    11</span></span>
+<span id="cb49-9"><a href="#cb49-9" tabindex="-1"></a><span class="co">#&gt;     0 dissolution     7</span></span>
+<span id="cb49-10"><a href="#cb49-10" tabindex="-1"></a><span class="co">#&gt;     1   formation     4</span></span>
+<span id="cb49-11"><a href="#cb49-11" tabindex="-1"></a><span class="co">#&gt;     1 dissolution     6</span></span>
+<span id="cb49-12"><a href="#cb49-12" tabindex="-1"></a><span class="co">#&gt;     2   formation     8</span></span>
+<span id="cb49-13"><a href="#cb49-13" tabindex="-1"></a><span class="co">#&gt;     2 dissolution     6</span></span></code></pre></div>
+<p>The first bin contains eleven onsets and seven terminations; the
+second contains four onsets and six terminations. These are spell
+counts, which may include repeated relationships between the same
+endpoints.</p>
+<p><code>durations()</code> summarises the length of relational spells.
+By default, it returns the number of spells (<code>events</code>),
+summed duration (<code>total</code>), and mean duration
+(<code>mean</code>) for each ordered pair. <code>unit</code> selects
+pair-level histories (<code>&quot;pair&quot;</code>), individual relational spells
+(<code>&quot;spell&quot;</code>), vertex activity (<code>&quot;vertex_activity&quot;</code>
+or <code>&quot;vertex_spell&quot;</code>), or spells incident to vertices
+(<code>&quot;node_ties&quot;</code>).</p>
+<div class="sourceCode" id="cb50"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" tabindex="-1"></a>tie_durations <span class="ot">&lt;-</span> <span class="fu">durations</span>(school)</span>
+<span id="cb50-2"><a href="#cb50-2" tabindex="-1"></a><span class="fu">head</span>(tie_durations, <span class="dv">6</span>)</span>
+<span id="cb50-3"><a href="#cb50-3" tabindex="-1"></a><span class="co">#&gt; # Relationship duration (edge-level)</span></span>
+<span id="cb50-4"><a href="#cb50-4" tabindex="-1"></a><span class="co">#&gt; # time in step</span></span>
+<span id="cb50-5"><a href="#cb50-5" tabindex="-1"></a><span class="co">#&gt; # first 6 of 330 rows</span></span>
+<span id="cb50-6"><a href="#cb50-6" tabindex="-1"></a><span class="co">#&gt; # durations in step</span></span>
+<span id="cb50-7"><a href="#cb50-7" tabindex="-1"></a><span class="co">#&gt;  from    to measure value</span></span>
+<span id="cb50-8"><a href="#cb50-8" tabindex="-1"></a><span class="co">#&gt;   Ana  Cara  events     1</span></span>
+<span id="cb50-9"><a href="#cb50-9" tabindex="-1"></a><span class="co">#&gt;   Ana   Dan  events     3</span></span>
+<span id="cb50-10"><a href="#cb50-10" tabindex="-1"></a><span class="co">#&gt;   Ana  Gita  events     5</span></span>
+<span id="cb50-11"><a href="#cb50-11" tabindex="-1"></a><span class="co">#&gt;   Ana  Iris  events     1</span></span>
+<span id="cb50-12"><a href="#cb50-12" tabindex="-1"></a><span class="co">#&gt;   Ana Jonas  events     4</span></span>
+<span id="cb50-13"><a href="#cb50-13" tabindex="-1"></a><span class="co">#&gt;   Ana  Kira  events     1</span></span></code></pre></div>
+<p>Ana contacted Gita five times and Jonas four times, and Cara, Iris,
+and Kira once each. The result contains three measures for each of 110
+pairs, giving 330 observations.</p>
+<div class="sourceCode" id="cb51"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1" tabindex="-1"></a>spell_durations <span class="ot">&lt;-</span> <span class="fu">durations</span>(school, <span class="at">unit =</span> <span class="st">&quot;spell&quot;</span>)</span>
+<span id="cb51-2"><a href="#cb51-2" tabindex="-1"></a><span class="fu">head</span>(spell_durations, <span class="dv">4</span>)</span>
+<span id="cb51-3"><a href="#cb51-3" tabindex="-1"></a><span class="co">#&gt; # Relationship duration (edge-level)</span></span>
+<span id="cb51-4"><a href="#cb51-4" tabindex="-1"></a><span class="co">#&gt; # time in step</span></span>
+<span id="cb51-5"><a href="#cb51-5" tabindex="-1"></a><span class="co">#&gt; # first 4 of 240 rows</span></span>
+<span id="cb51-6"><a href="#cb51-6" tabindex="-1"></a><span class="co">#&gt; # durations in step</span></span>
+<span id="cb51-7"><a href="#cb51-7" tabindex="-1"></a><span class="co">#&gt;  from   to raw_spell  measure value</span></span>
+<span id="cb51-8"><a href="#cb51-8" tabindex="-1"></a><span class="co">#&gt;   Ana Cara        71 duration  0.10</span></span>
+<span id="cb51-9"><a href="#cb51-9" tabindex="-1"></a><span class="co">#&gt;   Ana  Dan       143 duration  0.32</span></span>
+<span id="cb51-10"><a href="#cb51-10" tabindex="-1"></a><span class="co">#&gt;   Ana  Dan       168 duration  0.51</span></span>
+<span id="cb51-11"><a href="#cb51-11" tabindex="-1"></a><span class="co">#&gt;   Ana  Dan       228 duration  0.19</span></span></code></pre></div>
+<p>With <code>unit = &quot;spell&quot;</code>, the result describes the 240
+individual spells. Spell identifiers refer to the constructed spell
+table. Ana’s three contacts with Dan lasted 0.32, 0.51, and 0.19
+days.</p>
+<div class="sourceCode" id="cb52"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" tabindex="-1"></a>node_durations <span class="ot">&lt;-</span> <span class="fu">durations</span>(school, <span class="at">unit =</span> <span class="st">&quot;node_ties&quot;</span>, <span class="at">mode =</span> <span class="st">&quot;all&quot;</span>)</span>
+<span id="cb52-2"><a href="#cb52-2" tabindex="-1"></a><span class="fu">head</span>(node_durations, <span class="dv">4</span>)</span>
+<span id="cb52-3"><a href="#cb52-3" tabindex="-1"></a><span class="co">#&gt; # Incident tie duration (node-level)</span></span>
+<span id="cb52-4"><a href="#cb52-4" tabindex="-1"></a><span class="co">#&gt; # 14 vertices | mode all | time in step</span></span>
+<span id="cb52-5"><a href="#cb52-5" tabindex="-1"></a><span class="co">#&gt; # first 4 of 28 rows</span></span>
+<span id="cb52-6"><a href="#cb52-6" tabindex="-1"></a><span class="co">#&gt; # durations in step</span></span>
+<span id="cb52-7"><a href="#cb52-7" tabindex="-1"></a><span class="co">#&gt;  node measure value</span></span>
+<span id="cb52-8"><a href="#cb52-8" tabindex="-1"></a><span class="co">#&gt;   Ana  events    36</span></span>
+<span id="cb52-9"><a href="#cb52-9" tabindex="-1"></a><span class="co">#&gt;   Ben  events    34</span></span>
+<span id="cb52-10"><a href="#cb52-10" tabindex="-1"></a><span class="co">#&gt;  Cara  events    35</span></span>
+<span id="cb52-11"><a href="#cb52-11" tabindex="-1"></a><span class="co">#&gt;   Dan  events    35</span></span></code></pre></div>
+<p>With <code>unit = &quot;node_ties&quot;</code> and <code>mode = &quot;all&quot;</code>,
+<code>events</code> counts spells incident to each vertex in either
+direction. Ana participates in 36 spells and Ben in 34.</p>
+</div>
+<div id="collapsing-to-a-static-network" class="section level2">
+<h2>Collapsing to a static network</h2>
+<p><code>collapse_network()</code> aggregates a selected observation
+period into a static weighted network. <code>start</code> and
+<code>end</code> delimit that period. The result contains connected
+pairs and their available weight summaries.</p>
+<div class="sourceCode" id="cb53"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb53-1"><a href="#cb53-1" tabindex="-1"></a>flat <span class="ot">&lt;-</span> <span class="fu">collapse_network</span>(school, <span class="at">start =</span> <span class="dv">0</span>, <span class="at">end =</span> <span class="dv">7</span>)</span>
+<span id="cb53-2"><a href="#cb53-2" tabindex="-1"></a>flat</span>
+<span id="cb53-3"><a href="#cb53-3" tabindex="-1"></a><span class="co">#&gt; # Collapsed temporal network | 14 vertices | 59 edges | weight: binary</span></span>
+<span id="cb53-4"><a href="#cb53-4" tabindex="-1"></a><span class="co">#&gt; # 0 to 7 step</span></span>
+<span id="cb53-5"><a href="#cb53-5" tabindex="-1"></a><span class="co">#&gt;  from    to binary union_duration total_duration duration_fraction spell_count</span></span>
+<span id="cb53-6"><a href="#cb53-6" tabindex="-1"></a><span class="co">#&gt;   Ana  Cara      1           0.10           0.10        0.01428571           1</span></span>
+<span id="cb53-7"><a href="#cb53-7" tabindex="-1"></a><span class="co">#&gt;   Ana  Gita      1           0.33           0.33        0.04714286           1</span></span>
+<span id="cb53-8"><a href="#cb53-8" tabindex="-1"></a><span class="co">#&gt;   Ana Jonas      1           1.44           1.44        0.20571429           3</span></span>
+<span id="cb53-9"><a href="#cb53-9" tabindex="-1"></a><span class="co">#&gt;   Ana  Mira      1           0.41           0.41        0.05857143           1</span></span>
+<span id="cb53-10"><a href="#cb53-10" tabindex="-1"></a><span class="co">#&gt;   Ben   Eve      1           1.58           1.58        0.22571429           2</span></span>
+<span id="cb53-11"><a href="#cb53-11" tabindex="-1"></a><span class="co">#&gt;   Ben  Finn      1           0.23           0.23        0.03285714           1</span></span>
+<span id="cb53-12"><a href="#cb53-12" tabindex="-1"></a><span class="co">#&gt;  weight_sum weighted_duration latest_weight first last activity.duration</span></span>
+<span id="cb53-13"><a href="#cb53-13" tabindex="-1"></a><span class="co">#&gt;           1              0.10             1  6.67 6.77              0.10</span></span>
+<span id="cb53-14"><a href="#cb53-14" tabindex="-1"></a><span class="co">#&gt;           1              0.33             1  6.57 6.90              0.33</span></span>
+<span id="cb53-15"><a href="#cb53-15" tabindex="-1"></a><span class="co">#&gt;           3              1.44             1  2.12 7.00              1.44</span></span>
+<span id="cb53-16"><a href="#cb53-16" tabindex="-1"></a><span class="co">#&gt;           1              0.41             1  6.36 6.77              0.41</span></span>
+<span id="cb53-17"><a href="#cb53-17" tabindex="-1"></a><span class="co">#&gt;           2              1.58             1  3.61 6.24              1.58</span></span>
+<span id="cb53-18"><a href="#cb53-18" tabindex="-1"></a><span class="co">#&gt;           1              0.23             1  4.91 5.14              0.23</span></span>
+<span id="cb53-19"><a href="#cb53-19" tabindex="-1"></a><span class="co">#&gt;  activity.count</span></span>
+<span id="cb53-20"><a href="#cb53-20" tabindex="-1"></a><span class="co">#&gt;               1</span></span>
+<span id="cb53-21"><a href="#cb53-21" tabindex="-1"></a><span class="co">#&gt;               1</span></span>
+<span id="cb53-22"><a href="#cb53-22" tabindex="-1"></a><span class="co">#&gt;               3</span></span>
+<span id="cb53-23"><a href="#cb53-23" tabindex="-1"></a><span class="co">#&gt;               1</span></span>
+<span id="cb53-24"><a href="#cb53-24" tabindex="-1"></a><span class="co">#&gt;               2</span></span>
+<span id="cb53-25"><a href="#cb53-25" tabindex="-1"></a><span class="co">#&gt;               1</span></span></code></pre></div>
+<p>The first week contains 59 connected pairs. For each pair, the result
+records binary presence (<code>binary</code>), duration with at least
+one active spell (<code>union_duration</code>), summed spell duration
+(<code>total_duration</code>), and the proportion of observed time
+connected (<code>duration_fraction</code>). It also records spell
+counts, weight summaries, and first and last contact times.</p>
+<p>Ana and Jonas have three spells within the first week, totalling 1.44
+days, or approximately 21% of the week. Their first and last observed
+boundaries are days 2.12 and 7.00. Union and total duration coincide
+because their spells do not overlap.</p>
+<p>Use <code>weight</code> to select the summary used as the static edge
+weight.</p>
+<div class="sourceCode" id="cb54"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb54-1"><a href="#cb54-1" tabindex="-1"></a>first_week <span class="ot">&lt;-</span> <span class="fu">collapse_network</span>(school, <span class="at">start =</span> <span class="dv">0</span>, <span class="at">end =</span> <span class="dv">7</span>,</span>
+<span id="cb54-2"><a href="#cb54-2" tabindex="-1"></a>                               <span class="at">weight =</span> <span class="st">&quot;union_duration&quot;</span>)</span>
+<span id="cb54-3"><a href="#cb54-3" tabindex="-1"></a>first_week</span>
+<span id="cb54-4"><a href="#cb54-4" tabindex="-1"></a><span class="co">#&gt; # Collapsed temporal network | 14 vertices | 59 edges | weight: union_duration</span></span>
+<span id="cb54-5"><a href="#cb54-5" tabindex="-1"></a><span class="co">#&gt; # 0 to 7 step</span></span>
+<span id="cb54-6"><a href="#cb54-6" tabindex="-1"></a><span class="co">#&gt;  from    to binary union_duration total_duration duration_fraction spell_count</span></span>
+<span id="cb54-7"><a href="#cb54-7" tabindex="-1"></a><span class="co">#&gt;   Ana  Cara      1           0.10           0.10        0.01428571           1</span></span>
+<span id="cb54-8"><a href="#cb54-8" tabindex="-1"></a><span class="co">#&gt;   Ana  Gita      1           0.33           0.33        0.04714286           1</span></span>
+<span id="cb54-9"><a href="#cb54-9" tabindex="-1"></a><span class="co">#&gt;   Ana Jonas      1           1.44           1.44        0.20571429           3</span></span>
+<span id="cb54-10"><a href="#cb54-10" tabindex="-1"></a><span class="co">#&gt;   Ana  Mira      1           0.41           0.41        0.05857143           1</span></span>
+<span id="cb54-11"><a href="#cb54-11" tabindex="-1"></a><span class="co">#&gt;   Ben   Eve      1           1.58           1.58        0.22571429           2</span></span>
+<span id="cb54-12"><a href="#cb54-12" tabindex="-1"></a><span class="co">#&gt;   Ben  Finn      1           0.23           0.23        0.03285714           1</span></span>
+<span id="cb54-13"><a href="#cb54-13" tabindex="-1"></a><span class="co">#&gt;  weight_sum weighted_duration latest_weight first last activity.duration</span></span>
+<span id="cb54-14"><a href="#cb54-14" tabindex="-1"></a><span class="co">#&gt;           1              0.10             1  6.67 6.77              0.10</span></span>
+<span id="cb54-15"><a href="#cb54-15" tabindex="-1"></a><span class="co">#&gt;           1              0.33             1  6.57 6.90              0.33</span></span>
+<span id="cb54-16"><a href="#cb54-16" tabindex="-1"></a><span class="co">#&gt;           3              1.44             1  2.12 7.00              1.44</span></span>
+<span id="cb54-17"><a href="#cb54-17" tabindex="-1"></a><span class="co">#&gt;           1              0.41             1  6.36 6.77              0.41</span></span>
+<span id="cb54-18"><a href="#cb54-18" tabindex="-1"></a><span class="co">#&gt;           2              1.58             1  3.61 6.24              1.58</span></span>
+<span id="cb54-19"><a href="#cb54-19" tabindex="-1"></a><span class="co">#&gt;           1              0.23             1  4.91 5.14              0.23</span></span>
+<span id="cb54-20"><a href="#cb54-20" tabindex="-1"></a><span class="co">#&gt;  activity.count</span></span>
+<span id="cb54-21"><a href="#cb54-21" tabindex="-1"></a><span class="co">#&gt;               1</span></span>
+<span id="cb54-22"><a href="#cb54-22" tabindex="-1"></a><span class="co">#&gt;               1</span></span>
+<span id="cb54-23"><a href="#cb54-23" tabindex="-1"></a><span class="co">#&gt;               3</span></span>
+<span id="cb54-24"><a href="#cb54-24" tabindex="-1"></a><span class="co">#&gt;               1</span></span>
+<span id="cb54-25"><a href="#cb54-25" tabindex="-1"></a><span class="co">#&gt;               2</span></span>
+<span id="cb54-26"><a href="#cb54-26" tabindex="-1"></a><span class="co">#&gt;               1</span></span></code></pre></div>
+<p>The collapsed network supports static analyses such as layouts and
+community detection. Its aggregate summaries do not retain the complete
+timing of individual spells, so time-respecting paths must be examined
+using the temporal network.</p>
+</div>
+<div id="references" class="section level2">
+<h2>References</h2>
+<p>Holme, P., &amp; Saramäki, J. (2012). Temporal networks. <em>Physics
+Reports</em>, 519(3), 97–125.</p>
+<p>Kempe, D., Kleinberg, J., &amp; Kumar, A. (2002). Connectivity and
+inference problems for temporal networks. <em>Journal of Computer and
+System Sciences</em>, 64(4), 820–842.</p>
+<p>Saqr, M., &amp; Nouri, J. (2020). High resolution temporal network
+analysis to understand and improve collaborative learning. In
+<em>Proceedings of the Tenth International Conference on Learning
+Analytics &amp; Knowledge</em> (pp. 314–319). ACM.</p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
